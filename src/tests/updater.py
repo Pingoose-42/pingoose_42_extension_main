@@ -1,4 +1,6 @@
 import importlib.util
+import argparse
+from contextlib import redirect_stderr, redirect_stdout
 import fcntl
 import io
 import json
@@ -173,7 +175,7 @@ class Updates(unittest.TestCase):
 
     def test_real_archive_installs_pinned_revision_without_git(self):
         self.available()
-        self.sha = 'c' * 40  # The branch moved after the update was approved.
+        self.sha = 'c' * 40  # 사용자가 승인한 뒤 브랜치의 최신 커밋이 바뀐 상황이다.
         payload = source_archive(entries=[('src/scripts/install.sh',
             'printf approved > ../../installed-fixture\n'
             'cp .pingoose-source.json ../../installed-receipt.json\n')])
@@ -274,7 +276,7 @@ class Archives(unittest.TestCase):
             self.download(source_archive(entries=[('duplicate', 'one'), ('duplicate', 'two')]))
 
     def test_limits_archive_entry_count(self):
-        with patch.object(updater, 'MAX_SOURCE_FILES', 1), self.assertRaises(updater.UpdateError):
+        with patch.object(updater, 'MAX_SOURCE_ENTRIES', 1), self.assertRaises(updater.UpdateError):
             self.download(source_archive(entries=[('one', '1'), ('two', '2')]))
 
     def test_source_receipt_does_not_use_git_or_user_override(self):
@@ -329,7 +331,8 @@ class Archives(unittest.TestCase):
         helper.write_text(Path(updater.__file__).read_text())
         payload = self.root / 'archive.tar.gz'
         payload.write_bytes(source_archive(entries=[('src/scripts/install.sh',
-            'cp .pingoose-source.json ../../installed-receipt.json\n')]))
+            'cp .pingoose-source.json ../../installed-receipt.json\n'
+            'printf "Pingoose를 설치했습니다.\\n"\n')]))
         wrapper = '''
 import io, pathlib, runpy, sys
 from unittest.mock import patch
@@ -343,7 +346,7 @@ with patch('urllib.request.urlopen', return_value=io.BytesIO(pathlib.Path(payloa
             env=dict(os.environ, XDG_STATE_HOME=str(self.root / 'state'),
                      XDG_CONFIG_HOME=str(self.root / 'absent-config')), text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout)['status'], 'installed')
+        self.assertEqual(result.stdout, 'Pingoose를 설치했습니다.\n')
         updates = self.root / 'state/pingoose/updates'
         self.assertEqual(json.loads((updates / 'installed-receipt.json').read_text()),
                          {'source': CONFIG, 'sha': B})
@@ -359,7 +362,42 @@ with patch('urllib.request.urlopen', return_value=io.BytesIO(pathlib.Path(payloa
                 env=dict(os.environ, XDG_STATE_HOME=str(self.root / 'state')),
                 text=True, capture_output=True)
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(json.loads(result.stdout)['status'], 'error')
+        self.assertEqual(result.stdout, '')
+        self.assertIn('다른 설치나 업데이트가 진행 중입니다.', result.stderr)
+
+    def test_rejects_non_string_commit_in_source_receipt(self):
+        root = self.root / 'src'
+        root.mkdir()
+        (self.root / updater.SOURCE_RECEIPT).write_text(json.dumps({'source': CONFIG, 'sha': int('1' * 40)}))
+        with self.assertRaises(updater.UpdateError):
+            updater.source_receipt(root)
+
+
+class CommandOutput(unittest.TestCase):
+    def invoke(self, action, result=None, error=None):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        args = argparse.Namespace(action=action)
+        with patch.object(updater, 'parse_args', return_value=args), \
+                patch.object(updater, 'main', return_value=result, side_effect=error), \
+                redirect_stdout(stdout), redirect_stderr(stderr):
+            code = updater.cli()
+        return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_gnome_actions_keep_json_results(self):
+        for action, status in [('check', 'current'), ('install', 'installed')]:
+            with self.subTest(action=action):
+                code, stdout, stderr = self.invoke(action, {'status': status})
+                self.assertEqual(code, 0)
+                self.assertEqual(json.loads(stdout), {'status': status})
+                self.assertEqual(stderr, '')
+
+    def test_gnome_actions_keep_json_errors(self):
+        for action in ['check', 'install']:
+            with self.subTest(action=action):
+                code, stdout, stderr = self.invoke(action, error=updater.UpdateError('연결을 확인해 주세요.'))
+                self.assertEqual(code, 1)
+                self.assertEqual(json.loads(stdout), {'status': 'error', 'error': '연결을 확인해 주세요.'})
+                self.assertEqual(stderr, '')
 
 
 if __name__ == '__main__':

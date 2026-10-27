@@ -3,7 +3,7 @@ set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$root"
 if [[ $# -gt 1 || ( $# -eq 1 && $1 != --sockets ) ]]; then
-    echo 'Usage: bash src/scripts/test.sh [--sockets]' >&2
+    echo '사용법: bash src/scripts/test.sh [--sockets]' >&2
     exit 2
 fi
 while IFS= read -r -d '' file; do
@@ -22,4 +22,4 @@ if [[ ${1:-} == --sockets ]]; then
         gjs "src/tests/chat-$name.js"
     done
 fi
-printf '%s\n' 'All requested checks passed.'
+printf '%s\n' '요청한 검증을 모두 통과했습니다.'

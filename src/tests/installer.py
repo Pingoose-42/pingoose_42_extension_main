@@ -1,4 +1,4 @@
-"""Exercise the public shell entry point without installing a GNOME extension."""
+"""설치 파일을 임시 폴더로 대체해 셸 설치기의 실행 흐름을 확인한다."""
 import json
 import os
 from pathlib import Path
@@ -14,7 +14,7 @@ INSTALLER = ROOT / 'install.sh'
 SHA = 'b' * 40
 
 
-@unittest.skipIf(os.geteuid() == 0, 'the public installer deliberately refuses root')
+@unittest.skipIf(os.geteuid() == 0, '설치기는 일반 사용자 계정으로 실행해야 한다.')
 class Installer(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -105,7 +105,7 @@ else:
         scripts.mkdir(parents=True)
         (checkout / 'install.sh').write_text(INSTALLER.read_text())
         (scripts / 'install.sh').write_text('printf local > "$FIXTURE_RESULT"\n')
-        # The local path invokes Bash but does not need curl or Python.
+        # 로컬 소스가 있으면 내려받기 없이 설치 스크립트를 바로 실행한다.
         (self.bin / 'bash').symlink_to(shutil.which('bash'))
         result = subprocess.run([shutil.which('bash'), str(checkout / 'install.sh')],
                                 cwd=self.root, env=self.env, text=True, capture_output=True)

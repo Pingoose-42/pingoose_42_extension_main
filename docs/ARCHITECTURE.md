@@ -87,7 +87,11 @@ bash src/scripts/install.sh
 
 패키지 스크립트는 런타임 디렉토리를 포함합니다. 새 런타임 최상위 디렉토리를 추가하면 `package.sh`와 `install.sh`의 `--extra-source` 목록도 함께 확인합니다. 업데이트 설정의 `config` 디렉토리도 패키지에 포함됩니다. 설치는 GNOME 세션을 자동 재시작하지 않습니다.
 
-루트 `install.sh`는 로컬 소스 설치와 `curl | bash` 설치를 지원합니다. 원격 설치와 업데이트는 `worker/updater.py`의 `download_source()`와 `install_source()`를 공유하며, 커밋 SHA로 고정한 압축 파일을 사용합니다. `source_receipt()`는 임시 소스 루트의 `.pingoose-source.json` 또는 로컬 Git 커밋에서 설치 출처를 읽어 패키지의 `config/installed.json`에 기록합니다.
+로컬 소스에서 루트 `install.sh`를 실행하면 `src/scripts/install.sh`로 설치합니다. `curl | bash`로 실행하면 설치할 커밋을 먼저 확인하고, 같은 SHA의 도우미와 소스 압축 파일을 내려받습니다. 압축 파일은 `worker/updater.py`의 `download_source()`에서 받고, `extract_source()`에서 경로와 항목을 확인한 뒤 풉니다. 자동 업데이트에서도 이 다운로드·압축 해제 절차를 함께 사용합니다.
+
+`install_source()`에서는 선택한 저장소와 참조를 업데이트 설정에 저장하고 설치 스크립트를 실행합니다. 내려받은 소스의 커밋은 임시 소스 루트의 `.pingoose-source.json`에 남깁니다. 패키지를 만들 때 `source_receipt()`로 이 기록이나 로컬 Git 커밋을 읽어 `config/installed.json`에 넣으므로, 다음 업데이트에서 실제 설치 버전을 비교할 수 있습니다.
+
+GNOME에서 호출하는 `check`와 `install` 명령은 결과와 오류를 JSON으로 반환합니다. 터미널에서 실행하는 최초 설치에서는 설치 스크립트의 안내를 그대로 보여 주고, 오류는 표준 오류로 출력합니다.
 
 ## 변경 시 지킬 경계
 
