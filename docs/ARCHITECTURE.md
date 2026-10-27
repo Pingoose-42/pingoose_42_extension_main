@@ -87,6 +87,8 @@ bash src/scripts/install.sh
 
 패키지 스크립트는 런타임 디렉토리를 포함합니다. 새 런타임 최상위 디렉토리를 추가하면 `package.sh`와 `install.sh`의 `--extra-source` 목록도 함께 확인합니다. 업데이트 설정의 `config` 디렉토리도 패키지에 포함됩니다. 설치는 GNOME 세션을 자동 재시작하지 않습니다.
 
+루트 `install.sh`는 로컬 소스 설치와 `curl | bash` 부트스트랩을 모두 지원합니다. 원격 설치와 업데이트는 `worker/updater.py`의 `download_source()`와 `install_source()`를 공유하고, SHA로 고정한 GitHub 압축 파일을 사용합니다. 압축 설치의 `.pingoose-source.json`은 임시 소스 루트에만 두고, `source_receipt()`가 이를 읽어 배포 패키지의 `config/installed.json`에 기록합니다. Git 클론에서 직접 설치할 때만 `git rev-parse HEAD`를 사용합니다. 상세 비교와 제약은 [설치 방식과 검증](INSTALLATION.md)을 참고하세요.
+
 ## 변경 시 지킬 경계
 
 - Shell 전용 `St`·`Main` 모듈을 독립 실행되는 `worker`에 가져오지 않습니다.

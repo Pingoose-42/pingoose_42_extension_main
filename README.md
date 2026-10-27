@@ -4,13 +4,21 @@ GNOME Shell 42에서 42 Intra의 프로필, 프로젝트, 학습시간, 평가, 
 
 ## 설치 및 로그인
 
-42경산 교육용 PC의 Ubuntu 터미널에서 프로젝트 루트로 이동한 뒤 **sudo 없이** 실행합니다.
+42경산 교육용 PC의 GNOME 데스크톱 터미널에서 **sudo 없이** 실행합니다. 저장소를 클론하거나 Git을 설치할 필요가 없습니다.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Pingoose-42/pingoose_42_extension_main/main/install.sh | bash
+```
+
+설치기는 선택한 커밋의 소스 압축 파일을 임시 디렉터리에 받아 설치하고 정리합니다. 설치 커밋을 기록하므로 이후 자동 업데이트에서도 실제 설치 버전을 확인할 수 있습니다. 특정 브랜치·태그·커밋을 선택하려면 `bash -s -- --ref <이름 또는 SHA>`를 사용합니다. 이 방식은 새 설치기를 포함하는 버전부터 지원합니다.
+
+개발용 소스가 이미 있다면 프로젝트 루트에서 네트워크 다운로드 없이 설치할 수 있습니다.
 
 ```sh
 ./install.sh
 ```
 
-필요 환경: GNOME Shell 42, GJS, GTK 3/4, WebKit2 4.0, Soup 2.4, Python 3 GI.
+필요 환경: GNOME Shell 42, GJS, GTK 3/4, WebKit2 4.0, Soup 2.4, Python 3 GI. 한 줄 설치에는 curl과 인터넷 연결도 필요합니다. 다운로드와 Git 없는 업데이트 구조는 [설치 방식과 검증](docs/INSTALLATION.md)에 설명되어 있습니다.
 
 1. 설치 후 GNOME 세션을 다시 시작합니다. X11에서는 `Alt+F2` → `r` → Enter, Wayland에서는 로그아웃 후 재로그인합니다.
 2. 확장을 활성화합니다.
@@ -193,7 +201,7 @@ PC 로그인 후 확장이 시작되면 해당 세션에서 한 번 GitHub의 `m
 
 **General → Check for Updates**는 세션 제한 없이 바로 확인합니다. **Auto Update는 기본 켜짐**이며, 끄면 시스템 알림의 Yes/No로 설치 여부를 선택합니다. No를 선택하거나 설치가 실패하면 기준 커밋을 바꾸지 않습니다.
 
-설치할 커밋을 확정한 뒤 `~/.local/state/pingoose/updates/checkout-*`에 클론하고 해당 커밋의 `./install.sh`를 실행합니다. 성공·실패 후 임시 클론을 정리합니다. 설치 성공 시 알림 카드에 이번 업데이트의 커밋 제목들을 줄바꿈으로 표시합니다. 내역이 길면 여러 카드로 나누며 재시작 안내도 함께 표시합니다. 완료 알림이 나오면 GNOME Shell을 재시작하거나 다시 로그인해야 적용됩니다. 세션은 자동 재시작하지 않습니다. Git과 인터넷 연결이 필요합니다.
+설치할 커밋을 확정한 뒤 해당 SHA의 소스 압축 파일을 `~/.local/state/pingoose/updates/source-*`에 받아 설치합니다. 브랜치가 그사이 바뀌어도 승인한 커밋만 설치하고, 성공·실패 후 임시 소스를 정리합니다. Git은 필요하지 않습니다. 설치 성공 시 알림 카드에 이번 업데이트의 커밋 제목들을 줄바꿈으로 표시합니다. 내역이 길면 여러 카드로 나누며 재시작 안내도 함께 표시합니다. 완료 알림이 나오면 GNOME Shell을 재시작하거나 다시 로그인해야 적용됩니다. 세션은 자동 재시작하지 않습니다. 인터넷 연결이 필요합니다.
 
 기본 저장소는 `src/config/update.json`의 `https://github.com/Pingoose-42/pingoose_42_extension_main`입니다. 설치 후에도 유지할 사용자 설정은 `~/.config/pingoose/update.json`에 아래 형식으로 둘 수 있습니다. 이 파일이 있으면 기본 설정보다 우선합니다.
 

@@ -5,11 +5,12 @@ import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shutil
 import signal
 import subprocess
+import tarfile
 import tempfile
 import urllib.error
 import urllib.parse
@@ -18,6 +19,12 @@ import urllib.request
 
 class UpdateError(Exception):
     pass
+
+
+SOURCE_RECEIPT = '.pingoose-source.json'
+MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
+MAX_SOURCE_BYTES = 128 * 1024 * 1024
+MAX_SOURCE_FILES = 10000
 
 
 def load_json(path, default=None):
@@ -39,16 +46,98 @@ def save_json(path, value):
             os.unlink(temporary)
 
 
-def configuration(root):
-    override = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'pingoose/update.json'
-    config = load_json(override, load_json(root / 'config/update.json'))
-    repository = config.get('repository', '').rstrip('/').removesuffix('.git')
+def validate_configuration(config):
+    if not isinstance(config, dict):
+        raise UpdateError('Missing update repository configuration.')
+    repository = config.get('repository', '')
+    if not isinstance(repository, str):
+        raise UpdateError('Update repository must be an HTTPS GitHub repository URL.')
+    repository = repository.rstrip('/').removesuffix('.git')
     if not re.fullmatch(r'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository):
         raise UpdateError('Update repository must be an HTTPS GitHub repository URL.')
     branch = config.get('branch', 'main')
     if not isinstance(branch, str) or not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_./-]{0,199}', branch) or '..' in branch or branch.endswith('/'):
         raise UpdateError('Invalid update branch.')
     return {'repository': repository, 'branch': branch}
+
+
+def configuration(root):
+    override = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'pingoose/update.json'
+    return validate_configuration(load_json(override, load_json(root / 'config/update.json')))
+
+
+def source_receipt(root):
+    """Identify an archive installation without requiring a Git checkout."""
+    receipt = load_json(root.parent / SOURCE_RECEIPT)
+    if receipt is not None:
+        if not isinstance(receipt, dict) or not re.fullmatch('[0-9a-f]{40}', str(receipt.get('sha', ''))):
+            raise UpdateError('Invalid source revision receipt.')
+        return {'source': validate_configuration(receipt.get('source')), 'sha': receipt['sha']}
+    if (root.parent / '.git').exists():
+        sha = subprocess.check_output(['git', '-C', str(root.parent), 'rev-parse', 'HEAD'], text=True).strip()
+        return {'source': configuration(root), 'sha': sha}
+    return None
+
+
+def download_source(config, sha, destination, open_url=urllib.request.urlopen):
+    """Download one immutable GitHub revision and extract only ordinary files."""
+    config = validate_configuration(config)
+    if not re.fullmatch('[0-9a-f]{40}', sha or ''):
+        raise UpdateError('Invalid source commit.')
+    repository = config['repository'].removeprefix('https://github.com/')
+    archive_url = f'https://codeload.github.com/{repository}/tar.gz/{sha}'
+    expected_root = repository.split('/')[-1] + '-' + sha
+    destination.mkdir()
+    archive_path = destination.parent / 'source.tar.gz'
+    request = urllib.request.Request(archive_url, headers={'User-Agent': 'Pingoose-Updater'})
+    try:
+        with open_url(request, timeout=60) as response, archive_path.open('wb') as output:
+            downloaded = 0
+            while chunk := response.read(1024 * 1024):
+                downloaded += len(chunk)
+                if downloaded > MAX_ARCHIVE_BYTES:
+                    raise UpdateError('Source archive is too large.')
+                output.write(chunk)
+        with tarfile.open(archive_path, 'r:gz') as archive:
+            total = 0
+            for index, member in enumerate(archive):
+                parts = PurePosixPath(member.name).parts
+                if (index >= MAX_SOURCE_FILES or not parts or parts[0] != expected_root
+                        or '..' in parts or '\\' in member.name
+                        or not (member.isdir() or member.isfile())):
+                    raise UpdateError('Invalid source archive entry.')
+                target = destination.joinpath(*parts[1:])
+                if member.isdir():
+                    target.mkdir(parents=True, exist_ok=True)
+                    continue
+                if len(parts) < 2:
+                    raise UpdateError('Invalid source archive root.')
+                total += member.size
+                if total > MAX_SOURCE_BYTES:
+                    raise UpdateError('Extracted source archive is too large.')
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with archive.extractfile(member) as source, target.open('xb') as output:
+                    shutil.copyfileobj(source, output)
+                target.chmod(0o644 | (member.mode & 0o111))
+        if not (destination / 'src/scripts/install.sh').is_file():
+            raise UpdateError('This archive has no src/scripts/install.sh.')
+    except (OSError, ValueError, tarfile.TarError) as error:
+        raise UpdateError(f'Could not download or extract source revision: {error}') from error
+
+
+def install_source(config, sha, run, fetch=download_source, parent=None):
+    config = validate_configuration(config)
+    if not re.fullmatch('[0-9a-f]{40}', sha or ''):
+        raise UpdateError('Invalid source commit.')
+    with tempfile.TemporaryDirectory(prefix='source-', dir=parent) as temporary:
+        source = Path(temporary) / 'source'
+        fetch(config, sha, source)
+        # Future checks must follow the source chosen at installation, including
+        # --ref and configured forks, rather than the archive's default main.
+        (source / 'src/config').mkdir(parents=True, exist_ok=True)
+        save_json(source / 'src/config/update.json', config)
+        save_json(source / SOURCE_RECEIPT, {'source': config, 'sha': sha})
+        run(['bash', './src/scripts/install.sh'], cwd=str(source), timeout=300)
 
 
 def session_key():
@@ -147,47 +236,46 @@ def check(config, state, path, login, api=github, force=False, installed=None):
     return {'status': 'current'}
 
 
-def run_command(args, cwd=None, timeout=180):
-    env = dict(os.environ, GIT_TERMINAL_PROMPT='0')
-    process = subprocess.Popen(args, cwd=cwd, env=env, stdout=subprocess.DEVNULL,
-                               stderr=subprocess.DEVNULL, start_new_session=True)
+def run_command(args, cwd=None, timeout=180, quiet=True):
+    process = subprocess.Popen(args, cwd=cwd, stdout=subprocess.DEVNULL if quiet else None,
+                               stderr=subprocess.DEVNULL if quiet else None, start_new_session=True)
     try:
         process.wait(timeout=timeout)
     except subprocess.TimeoutExpired as error:
         os.killpg(process.pid, signal.SIGKILL)
         process.wait()
         raise UpdateError('Update command timed out. Please try again at the next login.') from error
+    except KeyboardInterrupt:
+        # The interactive bootstrap must not leave the installer running after
+        # its temporary source directory has been removed.
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+        raise
     if process.returncode:
         raise UpdateError(f'{args[0]} failed. The update was not confirmed; restart only after a successful installation.')
 
 
-def install(config, state, path, approved, run=run_command):
+def install(config, state, path, approved, run=run_command, fetch=download_source):
     candidate = state.get('candidate')
     if state.get('source') != config or not candidate or candidate.get('sha') != approved:
         raise UpdateError('The approved update no longer matches the configured repository.')
     if not re.fullmatch('[0-9a-f]{40}', approved):
         raise UpdateError('Invalid approved commit.')
-    checkout = Path(tempfile.mkdtemp(prefix='checkout-', dir=path.parent))
-    try:
-        run(['git', 'clone', '--no-checkout', '--single-branch', '--branch', config['branch'],
-             '--', config['repository'] + '.git', str(checkout)], timeout=180)
-        # Never install a later commit that appeared after the Yes prompt.
-        run(['git', '-C', str(checkout), 'checkout', '--detach', approved], timeout=120)
-        if not (checkout / 'install.sh').is_file():
-            raise UpdateError('This repository has no install.sh.')
-        run(['bash', './install.sh'], cwd=str(checkout), timeout=300)
-        state.update(baseline=candidate, installed=candidate, candidate=None)
-        save_json(path, state)
-        return {'status': 'installed', 'commit': candidate}
-    finally:
-        shutil.rmtree(checkout)
+    # The archive URL names the approved commit, so branch movement cannot change it.
+    install_source(config, approved, run, fetch, parent=path.parent)
+    state.update(baseline=candidate, installed=candidate, candidate=None)
+    save_json(path, state)
+    return {'status': 'installed', 'commit': candidate}
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['check', 'install'])
+    parser.add_argument('action', choices=['check', 'install', 'bootstrap'])
     parser.add_argument('--commit')
     parser.add_argument('--force', action='store_true')
+    parser.add_argument('--repository')
+    parser.add_argument('--branch', default='main')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     directory = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'pingoose/updates'
@@ -198,7 +286,14 @@ def main():
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
+            if args.action == 'bootstrap':
+                raise UpdateError('Another Pingoose installation or update is running. Try again after it finishes.')
             return {'status': 'busy'}
+        if args.action == 'bootstrap':
+            config = validate_configuration({'repository': args.repository or '', 'branch': args.branch})
+            install_source(config, args.commit,
+                           lambda *a, **kw: run_command(*a, **kw, quiet=False), parent=directory)
+            return {'status': 'installed', 'commit': {'sha': args.commit}}
         config = configuration(root)
         state = load_json(path, {})
         if args.action == 'check':
