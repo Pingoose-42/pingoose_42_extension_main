@@ -221,7 +221,16 @@ class Worker {
                     else if (!this.emptyProjectsSince) this.emptyProjectsSince = now();
                     if (!this.emptyProjectsSince || now() - this.emptyProjectsSince < 6) profile.projects = null;
                 } else this.emptyProjectsSince = null;
-                if (Array.isArray(profile.projects)) this.profileProjects = profile.projects;
+                if (Array.isArray(profile.projects)) {
+                    this.profileProjects = profile.projects;
+                    let changed=false;
+                    for(const row of this.evaluationState?.evaluations || []) {
+                        if(row.slug)continue;
+                        const matches=profile.projects.filter(p=>p.name.toLowerCase()===row.project.toLowerCase());
+                        if(matches.length===1){row.slug=matches[0].slug;changed=true;}
+                    }
+                    if(changed)this.writeState(this.evaluationState);
+                }
                 emit({type: 'profile', login: identity.login, ...profile, avatar: undefined});
                 if(coreReady && Array.isArray(profile.projects) && !this.view.is_loading)this.refreshPart('profile');
                 if (profile.avatar && profile.avatar !== this.avatarURL) this.loadAvatar(profile.avatar, identity);
@@ -550,7 +559,7 @@ class Worker {
                 const remaining=Date.parse(row.begin)-Date.now();
                 const users=!row.users.length && cached?.begin===row.begin && remaining>0 && remaining<=899000
                     ? cached.users : row.users;
-                retained.set(row.id, {...cached,...row,users,missing:false,missingAt:null});
+                retained.set(row.id, {...cached,...row,slug:row.slug || cached?.slug || null,users,missing:false,missingAt:null});
             }
             // Monitor missing matches from first discovery, independently of the 15-minute seat window.
             const present=new Set(rows.map(row=>row.id));
@@ -643,7 +652,7 @@ class Worker {
         if (!selected) return;
         const [slug, rows] = selected;
         const identity = this.auth;
-        this.feedbackDue.set(slug, now() + 30);
+        this.feedbackDue.set(slug, now() + 10);
         this.feedbackChecker ||= new imports.services.evaluationFeedback.Checker(this.context, allowedURI);
         this.feedbackChecker.run(identity.login, slug, page => {
             if (stopped || this.auth !== identity || !this.evaluationState) return;

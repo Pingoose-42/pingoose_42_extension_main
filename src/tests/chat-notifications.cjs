@@ -39,3 +39,15 @@ for (const hide of [
     assert.equal(banners.length, 1, 'only incoming user messages notify');
 }
 console.log('PASS: viewed chat stays quiet/read; other rooms and hidden panels notify; outgoing/system messages do not');
+let title;
+const BannerProbe=vm.runInNewContext('(class {'+source.slice(source.indexOf('    _notifyChat('),source.indexOf('    _selectChat('))+'})',{
+ GLib:{get_monotonic_time:()=>10000000},MessageTray:{Notification:class{constructor(_source,value){title=value;}setTransient(){}connect(){}}}
+});
+const bannerPanel=new BannerProbe();
+bannerPanel._settings={get_boolean:()=>true};
+bannerPanel._chatBannerSource={showNotification(){}};
+bannerPanel._chat={peer:()=>({login:'fixture',key:'c1r1s1'})};
+bannerPanel._notifyChat('c1r1s1','Hello');assert.equal(title,'Cluster Chat · fixture (c1r1s1)');
+bannerPanel._lastChatBanner=0;bannerPanel._chat.peer=()=>({key:'c1r1s1'});
+bannerPanel._notifyChat('c1r1s1','Hello');assert.equal(title,'Cluster Chat · c1r1s1');
+console.log('PASS: chat banner includes login and seat, with seat-only fallback');

@@ -22,6 +22,8 @@ function inspect(row, page, slug) {
         return {state:'pending',watch:pending.team && pending.stamp && pending.peer ? {slug,team:pending.team,stamp:pending.stamp,peer:pending.peer}:null};
     }
     const watch=row.feedbackWatch;
+    // Absence alone cannot distinguish an evaluation still in progress from
+    // submitted feedback. Require a persisted observation of its active button.
     if(!watch || watch.slug!==slug)return {state:'unknown'};
     const same=page.items.filter(item=>item.team===watch.team && item.stamp===watch.stamp && item.peer===watch.peer);
     return {state:same.length===1 && same[0].buttons.length===0?'complete':'unknown'};

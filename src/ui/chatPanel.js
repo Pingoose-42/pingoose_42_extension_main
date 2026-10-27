@@ -519,7 +519,9 @@ var ChatPanel = class ChatPanel {
             this._chatBannerSource.connect('destroy', () => { this._chatBannerSource = null; });
             Main.messageTray.add(this._chatBannerSource);
         }
-        const banner = new MessageTray.Notification(this._chatBannerSource, `Cluster Chat · ${key}`, text.slice(0, 200));
+        const peer = this._chat.peer(key);
+        const sender = peer?.login ? `${peer.login} (${peer.key || key})` : key;
+        const banner = new MessageTray.Notification(this._chatBannerSource, `Cluster Chat · ${sender}`, text.slice(0, 200));
         banner.pingooseBanner = true;
         banner.setTransient(true);
         banner.connect('activated', () => {

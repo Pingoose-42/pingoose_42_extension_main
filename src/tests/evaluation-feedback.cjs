@@ -35,3 +35,17 @@ href=null;assert.equal(M.inspect(watched,read(),'42cursus-libft').state,'complet
 context.document.readyState='loading';assert.equal(read(),null);
 context.document.readyState='complete';context.location.pathname='/42cursus-libft/someone';assert.equal(read(),null);
 console.log('PASS: observed project DOM parsing, disappearing button, loading and wrong-account guards');
+const offline={...row,users:['peer']};
+assert.equal(M.inspect(offline,{items:[{...item,buttons:[]}]},'42cursus-libft').state,'unknown');
+assert.equal(M.inspect(offline,{items:[{...item,peer:'someone-else',buttons:[]}]},'42cursus-libft').state,'unknown');
+assert.equal(M.inspect(offline,{items:[{...item,stamp:'2026-01-02 09:00:00 +0900',buttons:[]}]},'42cursus-libft').state,'unknown');
+assert.equal(M.inspect(offline,{items:[{...item,buttons:[]},{...item,buttons:[]}]},'42cursus-libft').state,'unknown');
+for (const elapsed of [1000, 30*60000, 3*3600000, 86400000]) {
+ const ongoing={...offline,begin:new Date(Date.now()-elapsed).toISOString()};
+ assert.equal(M.inspect(ongoing,{items:[{...item,buttons:[]}]},'42cursus-libft').state,'unknown');
+}
+assert.equal(M.inspect(watched,page,'42cursus-libft').state,'pending');
+assert.equal(M.inspect(watched,null,'42cursus-libft').state,'unknown');
+assert.equal(M.inspect(watched,{items:[]},'42cursus-libft').state,'unknown');
+assert.equal(M.inspect(watched,{items:[{...item,buttons:[]}]},'42cursus-libft').state,'complete');
+console.log('PASS: variable evaluation duration never proves completion; observed button transition does');
