@@ -10,7 +10,7 @@ GNOME Shell 42에서 42 Intra의 프로필, 프로젝트, 학습시간, 평가, 
 curl -fsSL https://raw.githubusercontent.com/Pingoose-42/pingoose_42_extension_main/main/install.sh | bash
 ```
 
-설치기는 선택한 커밋의 소스 압축 파일을 임시 디렉터리에 받아 설치하고 정리합니다. 설치 커밋을 기록하므로 이후 자동 업데이트에서도 실제 설치 버전을 확인할 수 있습니다. 특정 브랜치·태그·커밋을 선택하려면 `bash -s -- --ref <이름 또는 SHA>`를 사용합니다. 이 방식은 새 설치기를 포함하는 버전부터 지원합니다.
+특정 브랜치·태그·커밋을 선택하려면 `bash -s -- --ref <이름 또는 SHA>`를 사용합니다. 선택한 버전도 한 줄 설치를 지원해야 합니다.
 
 개발용 소스가 이미 있다면 프로젝트 루트에서 네트워크 다운로드 없이 설치할 수 있습니다.
 
@@ -18,7 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/Pingoose-42/pingoose_42_extension_m
 ./install.sh
 ```
 
-필요 환경: GNOME Shell 42, GJS, GTK 3/4, WebKit2 4.0, Soup 2.4, Python 3 GI. 한 줄 설치에는 curl과 인터넷 연결도 필요합니다. 다운로드와 Git 없는 업데이트 구조는 [설치 방식과 검증](docs/INSTALLATION.md)에 설명되어 있습니다.
+필요 환경: GNOME Shell 42, GJS, GTK 3/4, WebKit2 4.0, Soup 2.4, Python 3 GI. 한 줄 설치에는 curl과 인터넷 연결도 필요합니다.
 
 1. 설치 후 GNOME 세션을 다시 시작합니다. X11에서는 `Alt+F2` → `r` → Enter, Wayland에서는 로그아웃 후 재로그인합니다.
 2. 확장을 활성화합니다.
