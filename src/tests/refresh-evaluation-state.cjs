@@ -2,7 +2,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const Model=require('../models/evaluations.js');
 const source=fs.readFileSync('src/worker/webview.js','utf8');
 const method=source.slice(source.indexOf('    receive(text, identity) {'),source.indexOf('    publishEvaluations() {'));
-const notices=[],ctx={imports:{models:{evaluationFeedback:require('../models/evaluationFeedback.js')}},GLib:{timeout_add:()=>1,source_remove:()=>{}},Model,Date,now:()=>100,status:()=>{},emit:event=>notices.push(event)};
+const notices=[],ctx={imports:{models:{evaluationFeedback:require('../models/evaluationFeedback.js'),evaluationState:require('../models/evaluationState.js')}},GLib:{timeout_add:()=>1,source_remove:()=>{}},Model,Date,now:()=>100,status:()=>{},emit:event=>notices.push(event)};
 vm.createContext(ctx);const Probe=vm.runInContext('(class {'+method+'})',ctx);
 let saved=Model.advanceSeen(null,'me',[]).state;
 const p=new Probe();

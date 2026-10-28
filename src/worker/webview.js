@@ -547,35 +547,11 @@ class Worker {
         catch (_) { this.fail('response-error'); return false; }
         let plan;
         let previousRows = new Map();
-        const missingNotices=[];
+        let missingNotices=[];
         try {
             const previous = this.readState();
-            plan = Model.advanceSeen(previous, identity.subject, rows);
-            const retained = new Map(plan.state.evaluations.map(row => [row.id, row]));
-            previousRows = new Map(retained);
-            for (const row of rows) if (!plan.state.dismissed.includes(row.id)) {
-                const cached=retained.get(row.id);
-                if(cached && Date.parse(cached.begin)<=Date.now())continue;
-                const remaining=Date.parse(row.begin)-Date.now();
-                const users=!row.users.length && cached?.begin===row.begin && remaining>0 && remaining<=899000
-                    ? cached.users : row.users;
-                retained.set(row.id, {...cached,...row,slug:row.slug || cached?.slug || null,users,missing:false,missingAt:null});
-            }
-            // Monitor missing matches from first discovery, independently of the 15-minute seat window.
-            const present=new Set(rows.map(row=>row.id));
-            for(const [id,cached] of retained){
-                if(!present.has(id) && Date.parse(cached.begin)>Date.now() && !cached.missing){
-                    const missing={...cached,missing:true,missingAt:Date.now(),chatConfirmedAt:{}};
-                    retained.set(id,missing);missingNotices.push(missing);
-                }
-            }
-            // Only a successful, validated current-account response proves absence.
-            // This also reconciles cards restored from disk on the first login poll.
-            const completed = completeList ? imports.models.evaluationFeedback.completedEvaluators([...retained.values()], rows) : [];
-            for (const id of completed) retained.delete(id);
-            plan.state.dismissed = [...new Set([...plan.state.dismissed, ...completed])].slice(-2000);
-            plan.state.reminders = plan.state.reminders.filter(key => !completed.some(id => key.startsWith(`${id}:`)));
-            plan.state.evaluations = [...retained.values()];
+            ({plan, previousRows, missingNotices} = imports.models.evaluationState.reconcile(
+                previous, identity.subject, rows, completeList));
             this.evaluationState = plan.state;
             if (JSON.stringify(previous) !== JSON.stringify(plan.state)) this.writeState(plan.state);
         } catch (_) { this.fail('storage-error'); return false; }
@@ -639,15 +615,7 @@ class Worker {
         if (!this.auth || !this.evaluationState || this.feedbackChecker?.view) return;
         this.feedbackDue ||= new Map();
         const model = imports.models.evaluationFeedback;
-        const groups = new Map();
-        for (const row of this.evaluationState.evaluations) {
-            if (!model.eligibleEvaluatee(row)) continue;
-            const slug = row.feedbackWatch?.slug || row.slug || this.profileProjects?.find(p =>
-                p.name.toLowerCase() === row.project.toLowerCase())?.slug;
-            if (!slug || !/^[a-zA-Z0-9_-]{1,100}$/.test(slug)) continue;
-            if (!groups.has(slug)) groups.set(slug, []);
-            groups.get(slug).push({id:row.id,begin:row.begin});
-        }
+        const groups = model.projectGroups(this.evaluationState.evaluations, this.profileProjects || []);
         const selected = [...groups].find(([slug]) => now() >= (this.feedbackDue.get(slug) || 0));
         if (!selected) return;
         const [slug, rows] = selected;
@@ -1091,9 +1059,7 @@ class Worker {
             if (!this.auth || !this.evaluationState) return;
             const row = this.evaluationState.evaluations.find(item => item.id === id);
             if (!row || (!row.missing && Date.parse(row.begin) > Date.now())) return;
-            this.evaluationState.dismissed = [...new Set([...this.evaluationState.dismissed, id])].slice(-2000);
-            this.evaluationState.evaluations = this.evaluationState.evaluations.filter(item => item.id !== id);
-            this.evaluationState.reminders = this.evaluationState.reminders.filter(key => !key.startsWith(`${id}:`));
+            imports.models.evaluationState.dismiss(this.evaluationState, [id]);
             for (const key of this.counterpartChecks?.keys() || []) if (key.startsWith(`${id}:`)) this.counterpartChecks.delete(key);
             this.writeState(this.evaluationState);
             this.cleanupCounterpartImages();

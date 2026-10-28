@@ -99,3 +99,16 @@ bash src/scripts/install.sh
 - 인증 헤더는 작업 프로세스 내부에서만 사용하고 메시지나 로그에 넣지 않습니다.
 - GSettings 키와 저장 형식을 바꿀 때는 기존 사용자 데이터의 호환성을 확인합니다.
 - GJS 42의 `imports` 방식에 맞춰 모듈을 작성합니다. Node 테스트용 `module.exports`는 GJS에서 실행되지 않도록 조건부로 둡니다.
+
+## dev 리팩터링: 평가 상태와 조회 정책
+
+`models/evaluationState.js`는 서버 스냅샷과 저장 상태를 합치는 `reconcile()`과
+카드·알림 기준값을 함께 정리하는 `dismiss()`를 제공합니다. 입력 시각을 주입할 수
+있으며 파일, WebKit, 타이머에 접근하지 않습니다. `worker/webview.js`는 조회·저장·메시지
+전달을 담당합니다. `models/evaluationFeedback.js`의 `projectGroups()`는 같은 프로젝트의
+카드를 묶고 테스트카드·조회 대상이 아닌 역할을 제외합니다.
+
+추가 분리 후보는 `webview.js`의 상대 프로필 조회와 명령 라우팅,
+`ui/projectPanel.js`의 입력 편집기, `ui/chatPanel.js`의 연결 입력 상태입니다.
+이들은 비동기 취소·포커스·팝업 생명주기가 얽혀 있어 별도 동작 검증과 함께 분리해야 합니다.
+이번 변경은 평가 규칙과 상태 정리의 경계를 분리하며 UI나 조회 주기를 변경하지 않습니다.

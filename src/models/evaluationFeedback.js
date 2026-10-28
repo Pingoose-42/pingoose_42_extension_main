@@ -36,4 +36,17 @@ function completedEvaluators(cached, current, time = Date.now()) {
     return cached.filter(row => !row.devTest && ['evaluator','corrector'].includes(row.kind) &&
         Date.parse(row.begin) <= time && !present.has(row.id)).map(row => row.id);
 }
-if(typeof module!=='undefined')module.exports={readPage,inspect,eligibleEvaluatee,completedEvaluators};
+// Group requests by project so one page read serves every matching card.
+function projectGroups(rows, projects = [], time = Date.now()) {
+    const groups = new Map();
+    for (const row of rows) {
+        if (!eligibleEvaluatee(row, time)) continue;
+        const slug = row.feedbackWatch?.slug || row.slug || projects.find(p =>
+            p.name.toLowerCase() === row.project.toLowerCase())?.slug;
+        if (!slug || !/^[a-zA-Z0-9_-]{1,100}$/.test(slug)) continue;
+        if (!groups.has(slug)) groups.set(slug, []);
+        groups.get(slug).push({id:row.id, begin:row.begin});
+    }
+    return groups;
+}
+if(typeof module!=='undefined')module.exports={readPage,inspect,eligibleEvaluatee,completedEvaluators,projectGroups};
