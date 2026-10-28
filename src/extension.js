@@ -165,66 +165,21 @@ class Pingoose {
         }
     }
 
-    // 도메인 매니저 상태 게터/세터 위임
+    // 도메인 매니저 상태 접근자 (Visibility/Layout 동기화용)
     get _slots() { return this._slotManager?.slots || []; }
-    set _slots(val) { if (this._slotManager) this._slotManager._slots = val; }
     get _slotsExpanded() { return this._slotManager?.slotsExpanded || false; }
-    set _slotsExpanded(val) { if (this._slotManager) this._slotManager.slotsExpanded = val; }
-    get _slotsBusy() { return this._slotManager?.slotsBusy || false; }
-    set _slotsBusy(val) { if (this._slotManager) this._slotManager._slotsBusy = val; }
-    get _slotsError() { return this._slotManager?._slotsError; }
-    set _slotsError(val) { if (this._slotManager) this._slotManager._slotsError = val; }
-    get _slotDraft() { return this._slotManager?._slotDraft; }
-    set _slotDraft(val) { if (this._slotManager) this._slotManager._slotDraft = val; }
-    get _slotCreateExpanded() { return this._slotManager?._slotCreateExpanded || false; }
-    set _slotCreateExpanded(val) { if (this._slotManager) this._slotManager._slotCreateExpanded = val; }
-    get _slotCreating() { return this._slotManager?._slotCreating || false; }
-    set _slotCreating(val) { if (this._slotManager) this._slotManager._slotCreating = val; }
-    get _slotPollingReady() { return this._slotManager?._slotPollingReady || false; }
-    set _slotPollingReady(val) { if (this._slotManager) this._slotManager._slotPollingReady = val; }
-    get _slotPollBucket() { return this._slotManager?._slotPollBucket; }
-    set _slotPollBucket(val) { if (this._slotManager) this._slotManager._slotPollBucket = val; }
-
     get _evaluations() { return this._evalManager?.evaluations || []; }
     set _evaluations(val) { if (this._evalManager) this._evalManager._evaluations = val; }
     get _feedback() { return this._evalManager?.feedback || {}; }
-    set _feedback(val) { if (this._evalManager) this._evalManager._feedback = val; }
-    get _evaluationTimes() { return this._evalManager?._evaluationTimes; }
-    set _evaluationTimes(val) { if (this._evalManager) this._evalManager._evaluationTimes = val; }
-    get _evaluationActors() { return this._evalManager?._evaluationActors; }
-    set _evaluationActors(val) { if (this._evalManager) this._evalManager._evaluationActors = val; }
-    get _evaluationKey() { return this._evalManager?._evaluationKey; }
-    set _evaluationKey(val) { if (this._evalManager) this._evalManager._evaluationKey = val; }
-
     get _agenda() { return this._agendaManager?.agenda || []; }
     set _agenda(val) { if (this._agendaManager) this._agendaManager._agenda = val; }
     get _agendaAll() { return this._agendaManager?.agendaAll || []; }
     set _agendaAll(val) { if (this._agendaManager) this._agendaManager._agendaAll = val; }
     get _dismissedAgendaIds() { return this._agendaManager?.dismissedAgendaIds; }
     set _dismissedAgendaIds(val) { if (this._agendaManager) this._agendaManager._dismissedAgendaIds = val; }
-    get _agendaBusy() { return this._agendaManager?._agendaBusy; }
-    set _agendaBusy(val) { if (this._agendaManager) this._agendaManager._agendaBusy = val; }
-    get _agendaActionStatus() { return this._agendaManager?._agendaActionStatus; }
-    set _agendaActionStatus(val) { if (this._agendaManager) this._agendaManager._agendaActionStatus = val; }
-    get _agendaExpanded() { return this._agendaManager?._agendaExpanded; }
-    set _agendaExpanded(val) { if (this._agendaManager) this._agendaManager._agendaExpanded = val; }
-    get _agendaTimes() { return this._agendaManager?._agendaTimes; }
-    set _agendaTimes(val) { if (this._agendaManager) this._agendaManager._agendaTimes = val; }
-
     get _notifications() { return this._notificationManager?.notifications || []; }
     set _notifications(val) { if (this._notificationManager) this._notificationManager._notifications = val; }
     get _unreadIds() { return this._notificationManager?.unreadIds || new Set(); }
-    set _unreadIds(val) { if (this._notificationManager) this._notificationManager._unreadIds = val; }
-    get _receivedNotificationIds() { return this._notificationManager?._receivedNotificationIds; }
-    set _receivedNotificationIds(val) { if (this._notificationManager) this._notificationManager._receivedNotificationIds = val; }
-    get _flashActors() { return this._notificationManager?._flashActors || []; }
-    set _flashActors(val) { if (this._notificationManager) this._notificationManager._flashActors = val; }
-    get _flashTimer() { return this._notificationManager?._flashTimer || 0; }
-    set _flashTimer(val) { if (this._notificationManager) this._notificationManager._flashTimer = val; }
-    get _lastFlash() { return this._notificationManager?._lastFlash ?? -Infinity; }
-    set _lastFlash(val) { if (this._notificationManager) this._notificationManager._lastFlash = val; }
-    get _bannerSource() { return this._notificationManager?._bannerSource; }
-    set _bannerSource(val) { if (this._notificationManager) this._notificationManager._bannerSource = val; }
 
     _visitProject(project) {
         this._indicator.menu.close();
@@ -263,13 +218,10 @@ class Pingoose {
     }
 
     _message(message) {
-        if (!message || typeof message !== 'object')
-            return;
+        if (!message || typeof message !== 'object') return;
         if (message.type === 'reset-ready') {
             this._resetReady = true;
-            if (this._resetWorkerExited) {
-                this._finishFullReset();
-            }
+            if (this._resetWorkerExited) this._finishFullReset();
             return;
         }
         if (message.type === 'reset-error') {
@@ -286,50 +238,23 @@ class Pingoose {
             }
             return;
         }
-        if (message.type === 'favorite-clusters') {
-            this._chatPanel?._favorites?.completeClusters(message);
-            return;
-        }
-        if (message.type === 'chat-lookup') {
-            this._chatPanel?.completeLookup(message);
-            return;
-        }
+        if (message.type === 'favorite-clusters') { this._chatPanel?._favorites?.completeClusters(message); return; }
+        if (message.type === 'chat-lookup') { this._chatPanel?.completeLookup(message); return; }
         if (message.type === 'evaluation-check') {
             this._sessionEvaluationResult = message;
             this._finishSessionCheck();
             return;
         }
         if (message.type === 'slots') {
-            if (this._slotManager) { this._slotManager.onSlotsMessage(message); return; }
-            if (this._refreshPending) {
-                this._refreshSlotsDone = Array.isArray(message.rows) && !message.error;
-                if (message.error) this._finishRefresh(false);
-                else this._checkRefreshDone();
-            }
-            this._slotsBusy = false;
-            if (this._slotCreating && !message.error && message.created > 0) {
-                this._slotCreateExpanded = false;
-                this._slotDraft = null;
-            }
-            this._slotCreating = false;
-            if (Array.isArray(message.rows) && message.rows.length <= 1000) this._slots = message.rows;
-            this._slotsError = typeof message.error === 'string' ? message.error.slice(0, 200) : null;
-            this._renderSlots();
-            this._sessionSlotResult = message;
-            this._finishSessionCheck();
+            this._slotManager?.onSlotsMessage(message);
             return;
         }
         if (message.type === 'evaluation-dismissed' && typeof message.id === 'string') {
-            const id = message.id;
-            delete this._feedback[id];
-            this._renderCards();
+            this._evalManager?.onEvaluationDismissedMessage(message);
             return;
         }
         if (message.type === 'agenda-action') {
-            if (this._agendaManager) { this._agendaManager.onAgendaActionMessage(message); return; }
-            this._agendaBusy = null;
-            this._agendaActionStatus = {id: message.id, text: message.error || ''};
-            this._renderAgenda();
+            this._agendaManager?.onAgendaActionMessage(message);
             return;
         }
         if (message.type === 'agenda' && Array.isArray(message.rows) && message.rows.length <= 100) {
@@ -339,9 +264,7 @@ class Pingoose {
             return;
         }
         if (message.type === 'evaluations' && Array.isArray(message.rows) && message.rows.length <= 10000) {
-            if (this._evalManager) { this._evalManager.onEvaluationsMessage(message); return; }
-            this._evaluations = [...message.rows, ...this._evaluations.filter(row => row.devTest)];
-            this._renderEvaluations();
+            this._evalManager?.onEvaluationsMessage(message);
             return;
         }
         if (message.type === 'study-time') {
@@ -379,14 +302,13 @@ class Pingoose {
                 Main.notify('Pingoose', 'Your Intra ID must match the current PC username. Information from another account cannot be loaded.');
             }
             if (message.state === 'login-needed') {
-                this._slotPollingReady = false;
-                this._slotPollBucket = null;
+                this._slotManager && (this._slotManager._slotPollingReady = false);
                 this._indicator.setLoginOnly(true);
             } else if (['authenticated', 'watching'].includes(message.state)) {
                 const wasLoginOnly = this._indicator.loginOnly;
                 this._indicator.setLoginOnly(false);
-                this._slotPollingReady = true;
-                this._pollSlotsIfDue();
+                this._slotManager && (this._slotManager._slotPollingReady = true);
+                this._slotManager?.pollSlotsIfDue();
                 if (wasLoginOnly) {
                     this._restoreCardState?.();
                     this._renderCards();
@@ -396,40 +318,40 @@ class Pingoose {
             this._indicator.status.label.text = message.state;
             return;
         }
-        if (message.type !== 'notification' || typeof message.body !== 'string' ||
-            !message.body.trim() || message.body.length > 1000 ||
-            typeof message.id !== 'string' || message.id.length > 1200)
-            return;
-        const existing = this._notifications.find(item => item.id === message.id);
-        if (message.update === true && existing) {
-            if (existing.body !== message.body) {
-                existing.body = message.body;
-                this._saveCardState?.();
-                this._renderCards();
+        if (message.type === 'notification') {
+            if (this._notificationManager) {
+                this._notificationManager.onNotificationMessage(message);
+                return;
             }
-            return;
-        }
-        this._receivedNotificationIds ||= new Set();
-        if (this._receivedNotificationIds.has(message.id) || this._notifications.some(item => item.id === message.id))
-            return;
-        this._receivedNotificationIds.add(message.id);
-        if (this._receivedNotificationIds.size > 2000)
-            this._receivedNotificationIds.delete(this._receivedNotificationIds.values().next().value);
-        this._unreadIds ||= new Set();
-        if (!this._indicator.menu.isOpen) this._unreadIds.add(message.id);
-        this._notifications.unshift({
-            id: message.id,
-            body: message.body,
-            test: message.test === true,
-            category: message.category,
-            unread: !this._indicator.menu.isOpen,
-            time: GLib.DateTime.new_now_local().format('%H:%M')
-        });
-        this._saveCardState?.();
-        this._renderCards();
-        if (message.category !== 'update' && (message.test || this._settings.get_boolean(message.category === 'agenda' ? 'notify-agenda' : 'notify-evaluations'))) {
-            this._showBanner(message);
-            this._flashScreen();
+            // Fallback for isolated VM test probes without full manager instances
+            const existing = this._notifications?.find(item => item.id === message.id);
+            if (message.update === true && existing) {
+                if (existing.body !== message.body) {
+                    existing.body = message.body;
+                    this._saveCardState?.();
+                    this._renderCards();
+                }
+                return;
+            }
+            this._receivedNotificationIds ||= new Set();
+            if (this._receivedNotificationIds.has(message.id) || this._notifications?.some(item => item.id === message.id))
+                return;
+            this._receivedNotificationIds.add(message.id);
+            if (this._receivedNotificationIds.size > 2000)
+                this._receivedNotificationIds.delete(this._receivedNotificationIds.values().next().value);
+            this._unreadIds ||= new Set();
+            if (!this._indicator?.menu?.isOpen) this._unreadIds.add(message.id);
+            this._notifications?.unshift({
+                id: message.id, body: message.body,
+                test: message.test === true, category: message.category,
+                unread: !this._indicator?.menu?.isOpen, time: GLib.DateTime.new_now_local().format('%H:%M')
+            });
+            this._saveCardState?.();
+            this._renderCards();
+            if (message.category !== 'update' && (message.test || this._settings?.get_boolean(message.category === 'agenda' ? 'notify-agenda' : 'notify-evaluations'))) {
+                this._showBanner(message);
+                this._flashScreen();
+            }
         }
     }
 
