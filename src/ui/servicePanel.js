@@ -54,16 +54,24 @@ var ServicePanel = class ServicePanel {
         this.cards.destroy_all_children();
         this.entries=[];
         for (const site of Sites.readSites(this.settings)) {
-            const button = new St.Button({can_focus:true, x_expand:true, style_class:'pingoose-service-card'});
+            const card = new St.BoxLayout({x_expand:true, style_class:'pingoose-service-card'});
             const content = new St.BoxLayout({x_expand:true, style_class:'pingoose-service-card-content'});
             const picture = new St.Bin({width:48,height:48,y_align:Clutter.ActorAlign.CENTER,style_class:'pingoose-service-picture'});
             picture.set_child(new St.Icon({icon_name:'web-browser-symbolic',icon_size:24}));
             content.add_child(picture);
             content.add_child(new St.Label({text:site.name,x_expand:true,y_align:Clutter.ActorAlign.CENTER,style_class:'pingoose-service-name'}));
-            button.set_child(content);
-            button.connect('clicked', () => this.open(site));
-            this.cards.add_child(button);
-            this.entries.push({site,picture,requested:false});
+            const visit = new St.Button({label:'Visit',can_focus:true,y_align:Clutter.ActorAlign.CENTER,
+                accessible_name:`Visit ${site.name}`,style_class:'pingoose-service-visit'});
+            visit.connect('clicked',()=>this.open(site));
+            content.add_child(visit);
+            card.add_child(content);
+            this.cards.add_child(card);
+            const directory=GLib.build_filenamev([GLib.get_user_cache_dir(),'pingoose','service-icons-v2']);
+            const hash=GLib.compute_checksum_for_string(GLib.ChecksumType.SHA256,site.url,-1);
+            const cached=Gio.File.new_for_path(`${directory}/${hash}.png`);
+            const found=cached.query_exists(null);
+            if(found)picture.set_child(new St.Icon({gicon:new Gio.FileIcon({file:cached}),icon_size:32}));
+            this.entries.push({site,picture,requested:found});
         }
         if (!this.entries.length) this.cards.add_child(new St.Label({text:'Add websites in Settings → 42 Services.'}));
     }
