@@ -83,17 +83,17 @@ class Pingoose {
             return GLib.SOURCE_CONTINUE;
         });
 
-        this._restoreCardState();
-        this._renderEvaluations();
+        this._notificationManager?.restoreCardState();
+        this._evalManager?.renderEvaluations();
 
         this._evaluationClock = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
-            this._renderEvaluations();
-            this._updateAgendaTimes();
-            this._pollSlotsIfDue();
+            this._evalManager?.renderEvaluations();
+            this._agendaManager?.updateAgendaTimes();
+            this._slotManager?.pollSlotsIfDue();
             return GLib.SOURCE_CONTINUE;
         });
 
-        this._renderCards();
+        this._notificationManager?.renderCards();
 
         this._chatPanel = new Me.imports.ui.chatPanel.ChatPanel(this._indicator, command => this._send(command));
         this._chatPanel.onAvailabilityChanged = () => this._renderEvaluations();
@@ -360,6 +360,20 @@ class Pingoose {
         this._optionsManager = null;
     }
 }
+
+// Delegate decoupled domain actions to their respective managers
+Object.assign(Pingoose.prototype, {
+    _restoreCardState() { this._notificationManager?.restoreCardState(); },
+    _renderCards() { this._notificationManager?.renderCards(); },
+    _renderEvaluations(id) { this._evalManager?.renderEvaluations(id); },
+    _renderSlots() { this._slotManager?.renderSlots(); },
+    _renderAgenda() { this._agendaManager?.renderAgenda(); },
+    _updateAgendaTimes() { this._agendaManager?.updateAgendaTimes(); },
+    _pollSlotsIfDue(t) { this._slotManager?.pollSlotsIfDue(t); },
+    _sessionSlotRequest(c, cb) { this._slotManager?.sessionSlotRequest(c, cb); },
+    _finishSessionCheck() { this._slotManager?.finishSessionCheck(); },
+    _requestSlots(c) { this._slotManager?.requestSlots(c); },
+});
 
 // Shell view, settings, and reset controllers
 for (const name of ['settings', 'visibility', 'reset', 'layout']) {
