@@ -213,7 +213,7 @@
 .pingoose-light .pingoose-service-picture { background-color: #ffffff; color: #20252c; }
 .pingoose-dark .pingoose-service-card { background-color: rgba(255,255,255,0.06); }
 .pingoose-light .pingoose-service-card { background-color: rgba(0,0,0,0.045); }
-.pingoose-service-visit { padding: 7px 10px; border-radius: 8px; background-color: rgba(46,160,130,0.18); font-size: 0.9em; }
+.pingoose-service-visit { padding: 7px 10px; border-radius: 8px; background-color: rgba(46,160,130,0.18); font-size: 0.9em; font-weight: bold; }
 .pingoose-service-visit:hover, .pingoose-service-visit:focus { background-color: rgba(46,160,130,0.32); }
 .pingoose-service-name { font-weight: bold; }
 
