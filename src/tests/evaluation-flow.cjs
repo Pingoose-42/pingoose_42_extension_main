@@ -29,6 +29,7 @@ let banners=0;
 const profileMenus=[];
 class Menu {constructor(){this.actor={hide(){}};profileMenus.push(this);}addAction(label,action){this.action=action;}toggle(){this.toggled=true;}close(){}destroy(){}}
 const context={imports:{ui:{main:{uiGroup:{add_child(){}}}}},PopupMenu:{PopupMenu:Menu,PopupBaseMenuItem:Actor,PopupMenuItem:Actor},St:{Side:{TOP:0},BoxLayout:Actor,Label:Actor,Button:Actor,Bin:Actor,Icon:Actor},Clutter:{ActorAlign:{CENTER:0,END:1}},Pango:{WrapMode:{WORD_CHAR:0},EllipsizeMode:{NONE:0}},Main:{notify(){banners++;}},GLib:{DateTime:{new_now_local:()=>({format:()=> '18:45'})}}};
+context.imports.misc={extensionUtils:{getCurrentExtension:()=>({imports:{models:{startReminders:require('../models/startReminders')}}})}};
 vm.createContext(context);
 vm.runInContext('class Probe {'+source.slice(source.indexOf('    _message(message)'),source.indexOf('    _flashScreen('))+source.slice(source.indexOf('    _renderCards()'),source.indexOf('    disable()'))+'}; globalThis.Probe=Probe;',context);
 const p=new context.Probe();p._settings={get_boolean:()=>true};p._saveCardState=()=>{};p._syncOptionalSections=()=>{};p._updatePanelLabel=()=>{};p._notifications=[];p._indicator={cards:new Section(),menu:{isOpen:false},count:{},profileReady:true,loginOnly:false};p._flashScreen=()=>{};p._showBanner=()=>{banners++;};

@@ -102,8 +102,10 @@ var Controller = class Controller {
             indicator.studyColumn.visible = enabled('logtime');
             indicator.overviewItem.visible = !indicator.loginOnly && (enabled('projects') || enabled('logtime'));
         }
-        indicator.evaluationToggle?.updateCount(evals.length);
-        indicator.agendaToggle?.updateCount(agenda.length);
+        const pendingEvaluations = evals.filter(row => Date.parse(row.begin) <= Date.now()).length;
+        indicator.evaluationToggle?.updateCount(evals.length - pendingEvaluations, pendingEvaluations);
+        const pendingAgenda = agenda.filter(row => row.feedback).length;
+        indicator.agendaToggle?.updateCount(agenda.length - pendingAgenda, pendingAgenda);
         indicator.notificationToggle?.updateCount(notifications.length);
 
         const evaluationsVisible = !indicator.loginOnly && !!evals.length && enabled('evaluations');

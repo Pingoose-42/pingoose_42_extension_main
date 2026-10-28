@@ -2,6 +2,14 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.pingoose" path="/org/gnome/shell/extensions/pingoose/">
     <key name="deleted-calendar-events" type="as"><default>[]</default><summary>Individually deleted calendar event identifiers</summary></key>
+    <key name="agenda-calendar-scope" type="s"><choices><choice value="registered"/><choice value="all"/></choices><default>'registered'</default><summary>Agendas to sync</summary></key>
+    <key name="start-reminders-sent" type="as"><default>[]</default><summary>Delivered start reminders</summary></key>
+    <key name="notify-evaluation-reminder-enabled" type="b"><default>true</default><summary>Start reminders</summary></key>
+    <key name="notify-evaluation-immediate" type="b"><default>true</default><summary>Immediate notifications</summary></key>
+    <key name="evaluation-reminder-minutes" type="i"><range min="0" max="15"/><default>5</default><summary>Minutes before start</summary></key>
+    <key name="notify-agenda-reminder-enabled" type="b"><default>true</default><summary>Start reminders</summary></key>
+    <key name="notify-agenda-immediate" type="b"><default>true</default><summary>Immediate notifications</summary></key>
+    <key name="agenda-reminder-minutes" type="i"><range min="0" max="10080"/><default>30</default><summary>Minutes before start</summary></key>
     <key name="sync-agenda-calendar" type="b"><default>false</default><summary>Sync agenda to the local desktop calendar</summary></key>
     <key name="agenda-calendar-status" type="s"><default>''</default><summary>Calendar sync status</summary></key>
     <key name="panel-shortcut" type="as"><default>[]</default><summary>Global shortcut to open Pingoose</summary></key>

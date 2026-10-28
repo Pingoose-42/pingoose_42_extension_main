@@ -234,16 +234,17 @@ var Indicator = GObject.registerClass(class PingooseIndicator extends PanelMenu.
         const button=new St.Button({can_focus:true,x_expand:true,style_class:'pingoose-visit-intra pingoose-section-toggle'});
         button.set_child(new St.Label({text:title,x_expand:true,x_align:Clutter.ActorAlign.CENTER}));
         button.expanded=key ? preferences.get_boolean(key) : true;
-        button.updateCount=count=>{
-            CountLabel.update(button.get_child(), title, count, button.expanded);
+        button.updateCount=(count,attention=0)=>{
+            CountLabel.update(button.get_child(), title, count, button.expanded, attention);
             button.style_class='pingoose-visit-intra pingoose-section-toggle'+(button.expanded ? ' pingoose-toggle-active' : '');
             button.sectionCount=count;
+            button.attentionCount=attention;
             content.visible=button.expanded;
         };
         button.connect('clicked',()=>{
             button.expanded=!button.expanded;
             if(key)preferences.set_boolean(key,button.expanded);
-            button.updateCount(button.sectionCount);
+            button.updateCount(button.sectionCount,button.attentionCount);
         });
         button.updateCount(0);
         return button;

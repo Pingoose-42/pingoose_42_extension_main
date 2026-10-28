@@ -62,7 +62,9 @@ class Pingoose {
             onSaveCardState: () => this._notificationManager?.saveCardState()
         });
 
-        this._agendaCalendar = new Me.imports.services.agendaCalendar.Controller(this._settings, () => this._send('agenda:refresh'));
+        this._calendarPrompt = new Me.imports.services.calendarPrompt.Controller();
+        this._agendaCalendar = new Me.imports.services.agendaCalendar.Controller(this._settings, () => this._send('agenda:refresh'), done => this._calendarPrompt.ask(done));
+        this._startReminders = new Me.imports.services.startReminders.Controller(this._settings, message => this._notificationManager?.onNotificationMessage(message));
 
         this._agendaManager = new AgendaManager(this._indicator, this._bridge, this._settings, {
             optionsManager: this._optionsManager,
@@ -92,6 +94,7 @@ class Pingoose {
             this._evalManager?.renderEvaluations();
             this._agendaManager?.updateAgendaTimes();
             this._slotManager?.pollSlotsIfDue();
+            if (!this._indicator?.loginOnly && !this._maintenance?.active) this._startReminders?.tick(this._evalManager?.evaluations || [], this._agendaManager?.agendaAll || []);
             return GLib.SOURCE_CONTINUE;
         });
 
@@ -307,6 +310,7 @@ class Pingoose {
             this._indicator?.setLoginOnly(false);
             this._slotManager && (this._slotManager._slotPollingReady = true);
             this._slotManager?.pollSlotsIfDue();
+            if (!this._indicator?.loginOnly && !this._maintenance?.active) this._startReminders?.tick(this._evalManager?.evaluations || [], this._agendaManager?.agendaAll || []);
             if (wasLoginOnly) {
                 this._restoreCardState?.();
                 this._renderCards();
@@ -345,7 +349,7 @@ class Pingoose {
         });
         this._saveCardState?.();
         this._renderCards();
-        if (message.category !== 'update' && (message.test || this._settings?.get_boolean(message.category === 'agenda' ? 'notify-agenda' : 'notify-evaluations'))) {
+        if (imports.misc.extensionUtils.getCurrentExtension().imports.models.startReminders.immediateAllowed(message, this._settings) && message.category !== 'update' && (message.test || this._settings?.get_boolean(message.category === 'agenda' ? 'notify-agenda' : 'notify-evaluations'))) {
             this._showBanner(message);
             this._flashScreen();
         }
@@ -353,7 +357,7 @@ class Pingoose {
 
     disable() {
         for (const comp of [
-            this._agendaCalendar, this._maintenance, this._panelShortcut, this._autoHideScrollbars, this._bannerDuration,
+            this._calendarPrompt, this._agendaCalendar, this._maintenance, this._panelShortcut, this._autoHideScrollbars, this._bannerDuration,
             this._updater, this._projectPanel, this._servicePanel, this._chatPanel,
             this._notificationManager, this._agendaManager, this._evalManager, this._slotManager,
             this._optionsMenu, this._bridge, this._indicator,

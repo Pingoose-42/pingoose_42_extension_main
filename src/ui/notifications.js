@@ -75,7 +75,7 @@ var Controller = class Controller {
         });
         this._saveCardState();
         this._renderCards();
-        if (message.category !== 'update' && (message.test || this._settings?.get_boolean(message.category === 'agenda' ? 'notify-agenda' : 'notify-evaluations'))) {
+        if (imports.misc.extensionUtils.getCurrentExtension().imports.models.startReminders.immediateAllowed(message, this._settings) && message.category !== 'update' && (message.test || this._settings?.get_boolean(message.category === 'agenda' ? 'notify-agenda' : 'notify-evaluations'))) {
             this._showBanner(message);
             this._flashScreen();
         }
@@ -134,11 +134,11 @@ var Controller = class Controller {
             this._bannerSource.connect('destroy', () => { this._bannerSource = null; });
             Main.messageTray.add(this._bannerSource);
         }
-        const title = message.test ? 'Test notification' : message.category === 'agenda' ? 'New Agenda Event' :
+        const title = message.title || (message.test ? 'Test notification' : message.category === 'agenda' ? 'New Agenda Event' :
             message.id.startsWith('missing:') ? 'Evaluation missing' :
             message.id.startsWith('reminder:') ? 'Evaluation reminder' :
             message.id.startsWith('seat:') ? 'Evaluation location' :
-            message.id.startsWith('rescheduled:') ? 'Evaluation rescheduled' : 'New Evaluation Matched';
+            message.id.startsWith('rescheduled:') ? 'Evaluation rescheduled' : 'New Evaluation Matched');
         const body = message.body
             .replace(/^You have been matched with someone\.\s*/i, '')
             .replace(/^New agenda event\s*·\s*/i, '')

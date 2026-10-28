@@ -1,6 +1,6 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const files=new Map(),signals=new Map();let enabled=false,deleted=[],refreshes=0,writes=0,status='';
-const settings={connect(n,fn){signals.set(n,fn);return n;},disconnect(n){signals.delete(n);},get_boolean:()=>enabled,get_strv:()=>deleted,set_strv(_k,value){deleted=value;signals.get('changed::deleted-calendar-events')?.();},set_string(_k,value){status=value;}};
+const files=new Map(),signals=new Map();let scope='all',enabled=false,deleted=[],refreshes=0,writes=0,status='';
+const settings={connect(n,fn){signals.set(n,fn);return n;},disconnect(n){signals.delete(n);},get_boolean:()=>enabled,get_string:()=>scope,get_strv:()=>deleted,set_strv(_k,value){deleted=value;signals.get('changed::deleted-calendar-events')?.();},set_string(_k,value){status=value;}};
 class KeyFile{constructor(){this.data={};}set_string(group,key,value){this.data[group+key]=value;}set_boolean(...args){this.set_string(...args);}to_data(){return [JSON.stringify(this.data)];}}
 const ctx={logError(){},imports:{byteArray:{toString:x=>x},gi:{GLib:{build_filenamev:p=>p.join('/'),get_user_data_dir:()=>'/data',get_user_config_dir:()=>'/config',mkdir_with_parents(){},path_get_dirname:p=>p.slice(0,p.lastIndexOf('/')),KeyFile},Gio:{FileCreateFlags:{PRIVATE:1},File:{new_for_path:path=>({query_exists:()=>files.has(path),load_contents:()=>[true,files.get(path)],replace_contents:text=>{writes++;files.set(path,text);},delete:()=>files.delete(path),get_uri:()=>`file://${path}`})}}},misc:{extensionUtils:{getCurrentExtension:()=>({imports:{models:{agendaCalendar:require('../models/agendaCalendar')}}})}}}};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync('src/services/agendaCalendar.js','utf8'),ctx);
@@ -18,4 +18,10 @@ enabled=true;signals.get('changed::sync-agenda-calendar')();assert.equal(deleted
 control.observe([row],'a');assert(files.get(control.calendarPath).includes('SUMMARY:Exam'),'re-enabling restores server events');
 settings.set_strv('deleted-calendar-events',['a:event:1']);control.observe([row],'a');assert(!files.get(control.calendarPath).includes('VEVENT'),'poll does not undo individual deletion');
 control.clear();assert(files.has(control.historyPath));assert.equal(files.get('/personal/calendar'),'private');
+scope='registered';deleted=[];control.observe([{...row,subscribed:true}],'a');assert(files.get(control.calendarPath).includes('SUMMARY:Exam'));
+control.observe([{...row,subscribed:false}],'a');assert(!files.get(control.calendarPath).includes('VEVENT'),'unregister removes event');
+let approval;control.confirmEnable=done=>{approval=done;};control.enableApproved=false;
+files.set(control.sourcePath,'[Data Source]\nEnabled=false\n[Calendar]\nSelected=false\n');
+control.observe([{...row,subscribed:true}],'a');assert.equal(typeof approval,'function');assert(files.get(control.sourcePath).includes('Enabled=false'));
+approval(true);assert(!files.get(control.sourcePath).includes('Enabled=false'));
 control.destroy();console.log('PASS: sync pause retains events; deletion persists until re-enable; personal calendar untouched');

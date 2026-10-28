@@ -90,7 +90,7 @@ var Controller = class Controller {
         };
         const sync = () => this._applyTheme();
         this._themeChanged = this._settings.connect('changed', (_settings, key) => {
-            if (['update-check-request', 'agenda-calendar-status', 'sync-agenda-calendar', 'deleted-calendar-events'].includes(key)) return;
+            if (['update-check-request', 'agenda-calendar-status', 'sync-agenda-calendar', 'deleted-calendar-events', 'start-reminders-sent', 'agenda-calendar-scope'].includes(key)) return;
             if (key === 'logout-request') {
                 if(!this._resetting){this._chatPanel?.reset();this._send('logout');}
                 return;

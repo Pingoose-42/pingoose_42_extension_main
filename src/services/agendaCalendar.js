@@ -5,8 +5,10 @@ const Me = imports.misc.extensionUtils.getCurrentExtension();
 const Model = Me.imports.models.agendaCalendar;
 const ByteArray = imports.byteArray;
 var Controller = class Controller {
-    constructor(settings, refresh) {
+    constructor(settings, refresh, confirmEnable = null) {
         this.settings = settings;
+        this.confirmEnable = confirmEnable;
+        this.enableApproved = false;
         this.refresh = refresh;
         this.snapshot = null;
         this.directory = GLib.build_filenamev([GLib.get_user_data_dir(), 'pingoose', 'calendar']);
@@ -15,11 +17,13 @@ var Controller = class Controller {
         this.sourcePath = GLib.build_filenamev([GLib.get_user_config_dir(), 'evolution', 'sources', 'pingoose-agenda.source']);
         this.signal = settings.connect('changed::sync-agenda-calendar', () => {
             if (settings.get_boolean('sync-agenda-calendar')) {
+                this.enableApproved = false;
                 settings.set_strv('deleted-calendar-events', []);
                 this.snapshot = null;
             }
             this.sync();
         });
+        this.scopeSignal = settings.connect('changed::agenda-calendar-scope', () => { this.sync(); this.refresh(); });
         this.deleteSignal = settings.connect('changed::deleted-calendar-events', () => this.removeDeleted());
         this.removeDeleted();
         this.sync();
@@ -49,6 +53,24 @@ var Controller = class Controller {
                 if (request) this.refresh();
                 return;
             }
+            const existingSource = Gio.File.new_for_path(this.sourcePath);
+            if (!this.enableApproved && existingSource.query_exists(null)) {
+                const [, bytes] = existingSource.load_contents(null);
+                const content = ByteArray.toString(bytes);
+                if (/^(?:Enabled|Selected)=false\s*$/m.test(content)) {
+                    this.settings.set_string('agenda-calendar-status', 'Enable the Pingoose calendar to sync.');
+                    if (!this.awaitingEnable && this.confirmEnable) {
+                        this.awaitingEnable = true;
+                        this.confirmEnable(accepted => {
+                            this.awaitingEnable = false;
+                            if (this.destroyed) return;
+                            if (accepted) { this.enableApproved = true; this.sync(false); }
+                            else this.settings.set_boolean('sync-agenda-calendar', false);
+                        });
+                    }
+                    return;
+                }
+            }
             // Validate the new snapshot before modifying either persistent file.
             Model.calendar(this.snapshot.rows, this.snapshot.subject);
             let previous = [];
@@ -63,7 +85,11 @@ var Controller = class Controller {
                 }
             }
             const deleted = new Set(this.settings.get_strv('deleted-calendar-events'));
-            const rows = Model.retainPast(previous, this.snapshot.rows).filter(row => !deleted.has(Model.eventKey(this.snapshot.subject, row)));
+            const registeredOnly = this.settings.get_string('agenda-calendar-scope') === 'registered';
+            const current = this.snapshot.rows.filter(row => !registeredOnly || row.subscribed === true);
+            const unregistered = new Set(this.snapshot.rows.filter(row => row.subscribed === false).map(row => Model.eventKey(this.snapshot.subject, row)));
+            if (registeredOnly) previous = previous.filter(row => row.subscribed === true && !unregistered.has(Model.eventKey(this.snapshot.subject, row)));
+            const rows = Model.retainPast(previous, current).filter(row => !deleted.has(Model.eventKey(this.snapshot.subject, row)));
             const text = Model.calendar(rows, this.snapshot.subject);
             this.write(this.historyPath, JSON.stringify({subject: this.snapshot.subject, rows}));
             this.write(this.calendarPath, text);
@@ -102,7 +128,9 @@ var Controller = class Controller {
     }
     clear() { this.snapshot = null; }
     destroy() {
+        this.destroyed = true;
         this.settings.disconnect(this.signal);
         this.settings.disconnect(this.deleteSignal);
+        this.settings.disconnect(this.scopeSignal);
     }
 };

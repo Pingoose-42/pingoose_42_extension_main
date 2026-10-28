@@ -13,20 +13,35 @@ function build(settings) {
     const calendarSync = new Gtk.Switch({valign: Gtk.Align.CENTER});
     settings.bind('sync-agenda-calendar', calendarSync, 'active', Gio.SettingsBindFlags.DEFAULT);
     Common.row(box, 'Sync agenda with Calendar', calendarSync);
+    const calendarScope = new Gtk.ComboBoxText();
+    calendarScope.append('registered', 'Registered agendas only');
+    calendarScope.append('all', 'All agendas');
+    settings.bind('agenda-calendar-scope', calendarScope, 'active-id', Gio.SettingsBindFlags.DEFAULT);
+    Common.row(box, 'Agendas to sync', calendarScope);
     const manageCalendar = new Gtk.Button({label: 'Management'});
     let managementWindow = null;
     manageCalendar.connect('clicked', () => {
         if (!managementWindow) {
             managementWindow = new Gtk.Window({title: 'Agenda Management',
-                transient_for: box.get_root(), destroy_with_parent: true,
+                transient_for: box.get_root(), destroy_with_parent: true, modal: true,
                 default_width: 640, default_height: 600});
             const content = imports.misc.extensionUtils.getCurrentExtension().imports.preferences.management.build(settings);
             content.margin_top = content.margin_bottom = content.margin_start = content.margin_end = 24;
             managementWindow.set_child(Common.scrollPage(content));
-            managementWindow.connect('close-request', () => {
-                managementWindow = null;
-                return false;
-            });
+            const window = managementWindow;
+            const close = () => {
+                if (managementWindow === window) managementWindow = null;
+                window.destroy();
+            };
+            // Use a real GTK button, independent of window-manager decorations.
+            const header = new Gtk.HeaderBar({show_title_buttons: false});
+            header.set_title_widget(new Gtk.Label({label: 'Agenda Management'}));
+            const closeButton = new Gtk.Button({icon_name: 'window-close-symbolic', tooltip_text: 'Close'});
+            closeButton.add_css_class('flat');
+            closeButton.connect('clicked', close);
+            header.pack_end(closeButton);
+            window.set_titlebar(header);
+            window.connect('close-request', () => { close(); return true; });
         }
         managementWindow.present();
     });
