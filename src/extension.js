@@ -238,33 +238,7 @@ class Pingoose {
         this._agendaManager?.clear();
         this._evalManager?.clear();
         this._notificationManager?.clear();
-
-        const indicator = this._indicator;
-        if (!indicator) return;
-        indicator.lastProfile = null;
-        indicator.profileRenderKey = null;
-        indicator.profileLoadStarted = 0;
-        indicator.profileReady = indicator.avatarReady = indicator.studyReady = false;
-        indicator.profileContent.hide();
-        indicator.profileLoading.show();
-        indicator.projectsKey = null;
-        indicator.profileName.text = 'Loading profile…';
-        indicator.profileLogin.text = '';
-        indicator.monthTime.text = '—';
-        indicator.todayTime.text = 'Today: —';
-        indicator.profileLevel.text = 'Lv.—';
-        indicator.profilePercent.text = '(—%)';
-        indicator.profileProgress.width = 0;
-        indicator.profilePoints.text = 'Ev.P —';
-        indicator.profilePace.text = 'Pace — ·';
-        indicator.profileDeadline.text = '—';
-        indicator.avatar.set_style('');
-        indicator.avatar.set_child(new St.Icon({icon_name: 'avatar-default-symbolic', icon_size: 40}));
-        indicator.projects.removeAll();
-        const projectsLoading = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-        projectsLoading.add_child(Me.imports.ui.spinner.create(20));
-        indicator.projects.addMenuItem(projectsLoading);
-        indicator.setLoginOnly(true);
+        this._indicator?.resetProfile();
         this._renderCards();
     }
 

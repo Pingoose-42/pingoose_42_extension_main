@@ -386,6 +386,34 @@ var Indicator = GObject.registerClass(class PingooseIndicator extends PanelMenu.
         }
     }
 
+    resetProfile() {
+        this.lastProfile = null;
+        this.profileRenderKey = null;
+        this.profileLoadStarted = 0;
+        this.profileReady = this.avatarReady = this.studyReady = false;
+        this.profileContent.hide();
+        this.profileLoading.show();
+        this.projectsKey = null;
+        this.profileName.text = 'Loading profile…';
+        this.profileLogin.text = '';
+        this.monthTime.text = '—';
+        this.todayTime.text = 'Today: —';
+        this.profileLevel.text = 'Lv.—';
+        this.profilePercent.text = '(—%)';
+        this.profileProgress.width = 0;
+        this.profilePoints.text = 'Ev.P —';
+        this.profilePace.text = 'Pace — ·';
+        this.profileDeadline.text = '—';
+        this.avatar.set_style('');
+        this.avatar.set_child(new St.Icon({icon_name: 'avatar-default-symbolic', icon_size: 40}));
+        this.projects.removeAll();
+        const projectsLoading = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        const spinner = Me?.imports?.ui?.spinner || imports.misc.extensionUtils.getCurrentExtension().imports.ui.spinner;
+        projectsLoading.add_child(spinner.create(20));
+        this.projects.addMenuItem(projectsLoading);
+        this.setLoginOnly(true);
+    }
+
     setLoginOnly(loginOnly) {
         if (this.loginOnly === loginOnly) return;
         this.loginOnly = loginOnly;
