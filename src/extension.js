@@ -483,8 +483,8 @@ class Pingoose {
     }
 }
 
-// Feature controllers share this extension's lifecycle and state.
-for (const name of ['settings', 'evaluations', 'slots', 'agenda', 'notifications', 'visibility', 'reset', 'layout']) {
+// Shell view, settings, and reset controllers
+for (const name of ['settings', 'visibility', 'reset', 'layout']) {
     const descriptors = Object.getOwnPropertyDescriptors(Me.imports.ui[name].Controller.prototype);
     delete descriptors.constructor;
     Object.defineProperties(Pingoose.prototype, descriptors);
