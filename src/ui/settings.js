@@ -165,3 +165,11 @@ var Controller = class Controller {
     }
 
 };
+
+function SettingsManager(indicator, settings, options = {}) {
+    this._indicator = indicator;
+    this._settings = settings;
+    Object.assign(this, options);
+}
+SettingsManager.prototype = Object.create(Controller.prototype);
+SettingsManager.prototype.constructor = SettingsManager;
