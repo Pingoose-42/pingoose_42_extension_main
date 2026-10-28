@@ -55,11 +55,11 @@ var ServicePanel = class ServicePanel {
         this.entries=[];
         for (const site of Sites.readSites(this.settings)) {
             const button = new St.Button({can_focus:true, x_expand:true, style_class:'pingoose-service-card'});
-            const content = new St.BoxLayout({vertical:true, style_class:'pingoose-service-card-content'});
-            const picture = new St.Bin({height:100, style_class:'pingoose-service-picture'});
-            picture.set_child(new St.Icon({icon_name:'web-browser-symbolic',icon_size:42}));
+            const content = new St.BoxLayout({x_expand:true, style_class:'pingoose-service-card-content'});
+            const picture = new St.Bin({width:48,height:48,y_align:Clutter.ActorAlign.CENTER,style_class:'pingoose-service-picture'});
+            picture.set_child(new St.Icon({icon_name:'web-browser-symbolic',icon_size:24}));
             content.add_child(picture);
-            content.add_child(new St.Label({text:site.name,style_class:'pingoose-service-name'}));
+            content.add_child(new St.Label({text:site.name,x_expand:true,y_align:Clutter.ActorAlign.CENTER,style_class:'pingoose-service-name'}));
             button.set_child(content);
             button.connect('clicked', () => this.open(site));
             this.cards.add_child(button);
@@ -72,7 +72,7 @@ var ServicePanel = class ServicePanel {
             if (this.previews.size >= 2) break;
             if (entry.requested) continue;
             entry.requested=true;
-            const directory=GLib.build_filenamev([GLib.get_user_cache_dir(),'pingoose','service-previews']);
+            const directory=GLib.build_filenamev([GLib.get_user_cache_dir(),'pingoose','service-icons-v2']);
             try {
                 const process=Gio.Subprocess.new(['/usr/bin/python3',`${Me.path}/worker/servicePreview.py`,entry.site.url,directory],
                     Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
@@ -84,8 +84,7 @@ var ServicePanel = class ServicePanel {
                         if (this.destroyed || !child.get_successful() || !this.entries.includes(entry)) return;
                         const path=output.trim();
                         if (!path.startsWith(directory+'/') || !/\/[a-f0-9]{64}\.png$/.test(path)) return;
-                        entry.picture.set_child(null);
-                        entry.picture.set_style(`background-image: url("${Gio.File.new_for_path(path).get_uri()}"); background-size: contain;`);
+                        entry.picture.set_child(new St.Icon({gicon:new Gio.FileIcon({file:Gio.File.new_for_path(path)}),icon_size:32}));
                     } catch (_) {}
                     finally { if (!this.destroyed) this.sync(); }
                 });

@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Fetch a bounded public site preview without accessing Intra's browser session."""
+"""Fetch a bounded public site icon without accessing Intra's browser session."""
 import hashlib, ipaddress, socket, sys, urllib.request, urllib.parse
 from html.parser import HTMLParser
 from pathlib import Path
@@ -45,14 +45,14 @@ def main():
     try:
         data, resolved=fetch(url, 512000)
         parser=Metadata(); parser.feed(data.decode('utf-8',errors='replace'))
-        candidates=[urllib.parse.urljoin(resolved,item) for item in parser.images+parser.icons if item]
+        candidates=[urllib.parse.urljoin(resolved,item) for item in parser.icons if item]
     except Exception: pass
     candidates.append(urllib.parse.urljoin(url,'/favicon.ico'))
     for candidate in candidates[:4]:
         try:
             data,_=fetch(candidate, 1500000)
             loader=GdkPixbuf.PixbufLoader()
-            loader.connect('size-prepared',lambda obj,w,h: obj.set_size(300,140))
+            loader.connect('size-prepared',lambda obj,w,h: obj.set_size(max(1,round(w*min(64/w,64/h))),max(1,round(h*min(64/w,64/h)))))
             loader.write(data); loader.close()
             pix=loader.get_pixbuf()
             if not pix: continue
