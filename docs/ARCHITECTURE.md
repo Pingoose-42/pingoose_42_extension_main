@@ -53,7 +53,7 @@ src/
 │   ├── projectPanel.js       # [사이드 패널] 프로젝트 메모/서브젝트 패널
 │   └── indicator.js          # [탑바/메인 팝업] 기본 쉘 버튼 및 팝업 메뉴 컨테이너
 │
-├── models/                   # [순수 도메인 로직] 규칙, 시간 계산, 데이터 검증 (UI/I/O 무관)
+├── models/                   # [순수 도메인 로직] 규칙, 시간 계산, 데이터 검증 (UI/I/O 무관, 상세: docs/MODEL_DESIGN_GUIDE.md)
 │   ├── slotSchedule.js       # 슬롯 15분 단위 유효성 검사 및 페이로드 빌더
 │   ├── agenda.js             # 아젠다 데이터 정규화 및 구독/마감 규칙
 │   ├── evaluations.js        # 평가 상태 전이 및 알림 메시지 생성
