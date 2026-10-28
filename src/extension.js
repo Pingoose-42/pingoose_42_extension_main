@@ -268,31 +268,19 @@ class Pingoose {
             return;
         }
         if (message.type === 'study-time') {
-            if (message.login !== GLib.get_user_name()) return;
-            const format = minutes => Number.isInteger(minutes) && minutes >= 0 && minutes <= 44640
-                ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : '—';
-            this._indicator.refreshLogtimeTitle();
-            this._indicator.monthTime.text = format(message.monthMinutes);
-            this._indicator.todayTime.text = `Today: ${format(message.todayMinutes)}`;
-            this._indicator.studyReady = Number.isInteger(message.monthMinutes) && Number.isInteger(message.todayMinutes);
-            this._indicator.checkProfileReady();
+            this._indicator?.updateStudyTime(message);
             return;
         }
         if (message.type === 'signed-out') {
             this._clearProfile();
             return;
         }
-        if (['profile', 'profile-avatar'].includes(message.type)) {
-            if (message.login !== GLib.get_user_name()) return;
-            if (message.type === 'profile') this._indicator.updateProfile(message);
-            else {
-                const image = Gio.File.new_for_path(GLib.build_filenamev([
-                    GLib.get_user_state_dir(), 'pingoose', 'profile-avatar']));
-                this._indicator.avatarReady = true;
-                this._indicator.checkProfileReady();
-                this._indicator.avatar.set_child(null);
-                this._indicator.avatar.set_style(`background-image: url("${image.get_uri()}"); background-size: cover;`);
-            }
+        if (message.type === 'profile') {
+            if (message.login === GLib.get_user_name()) this._indicator?.updateProfile(message);
+            return;
+        }
+        if (message.type === 'profile-avatar') {
+            this._indicator?.updateAvatar(message.login);
             return;
         }
         if (message.type === 'status' && Object.prototype.hasOwnProperty.call(STATUS, message.state)) {

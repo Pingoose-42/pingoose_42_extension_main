@@ -386,6 +386,27 @@ var Indicator = GObject.registerClass(class PingooseIndicator extends PanelMenu.
         }
     }
 
+    updateStudyTime(message) {
+        if (message.login !== GLib.get_user_name()) return;
+        const format = minutes => Number.isInteger(minutes) && minutes >= 0 && minutes <= 44640
+            ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : '—';
+        this.refreshLogtimeTitle();
+        this.monthTime.text = format(message.monthMinutes);
+        this.todayTime.text = `Today: ${format(message.todayMinutes)}`;
+        this.studyReady = Number.isInteger(message.monthMinutes) && Number.isInteger(message.todayMinutes);
+        this.checkProfileReady();
+    }
+
+    updateAvatar(login) {
+        if (login !== GLib.get_user_name()) return;
+        const image = Gio.File.new_for_path(GLib.build_filenamev([
+            GLib.get_user_state_dir(), 'pingoose', 'profile-avatar']));
+        this.avatarReady = true;
+        this.checkProfileReady();
+        this.avatar.set_child(null);
+        this.avatar.set_style(`background-image: url("${image.get_uri()}"); background-size: cover;`);
+    }
+
     resetProfile() {
         this.lastProfile = null;
         this.profileRenderKey = null;
