@@ -32,13 +32,8 @@ var Controller = class Controller {
         }
     }
 
-    get notifications() {
-        return this._notifications;
-    }
-
-    get unreadIds() {
-        return this._unreadIds;
-    }
+    get notifications() { return this._notifications; }
+    get unreadIds() { return this._unreadIds; }
 
     clear() {
         this._notifications = [];
@@ -86,16 +81,12 @@ var Controller = class Controller {
         }
     }
 
-    saveCardState() {
-        this._saveCardState();
-    }
+    saveCardState() { this._saveCardState(); }
 
     _saveCardState() {
         if (this._resetting || this._cardArchiveFailed) return;
         try {
             const store = imports.misc.extensionUtils.getCurrentExtension().imports.services.cardStore;
-            // Desktop update checks also run before Intra sign-in. Preserve the
-            // archived account cards while adding these device-level notices.
             if (this._indicator?.loginOnly) {
                 const updates = this._notifications.filter(row => row.category === 'update');
                 if (!updates.length) return;
@@ -119,9 +110,7 @@ var Controller = class Controller {
         }
     }
 
-    restoreCardState() {
-        this._restoreCardState();
-    }
+    restoreCardState() { this._restoreCardState(); }
 
     _restoreCardState() {
         try {
@@ -150,7 +139,6 @@ var Controller = class Controller {
             message.id.startsWith('reminder:') ? 'Evaluation reminder' :
             message.id.startsWith('seat:') ? 'Evaluation location' :
             message.id.startsWith('rescheduled:') ? 'Evaluation rescheduled' : 'New Evaluation Matched';
-        // Keep the event details already supplied by the worker; omit repeated headings.
         const body = message.body
             .replace(/^You have been matched with someone\.\s*/i, '')
             .replace(/^New agenda event\s*·\s*/i, '')
@@ -169,12 +157,9 @@ var Controller = class Controller {
             !(this._notificationSettings?.get_boolean('show-banners') ?? true))
             return;
         const count = remaining === null ? (this._settings?.get_int('flash-count') || 0) : remaining;
-        if (count === 0)
-            return;
+        if (count === 0) return;
         const now = GLib.get_monotonic_time();
-        // Coalesce bursts: never turn a stream of notifications into a strobe.
-        if (now - this._lastFlash < 1_000_000)
-            return;
+        if (now - this._lastFlash < 1_000_000) return;
         this._lastFlash = now;
         this._flashActors = Main.layoutManager.monitors.map(monitor => new St.Widget({
             style_class: 'pingoose-flash', reactive: false, can_focus: false,
@@ -190,7 +175,6 @@ var Controller = class Controller {
                     onComplete: () => {
                         this._flashActors = this._flashActors.filter(actor => actor !== frame);
                         frame.destroy();
-                        // Wait for every monitor; only one repeat timer may exist.
                         if (!this._flashActors.length && count > 1) {
                             const delay = Math.max(1, Math.ceil(
                                 (1_000_000 - (GLib.get_monotonic_time() - this._lastFlash)) / 1000));
@@ -206,9 +190,7 @@ var Controller = class Controller {
         }
     }
 
-    clearFlash() {
-        this._clearFlash();
-    }
+    clearFlash() { this._clearFlash(); }
 
     _clearFlash() {
         if (this._flashTimer) {
@@ -223,9 +205,7 @@ var Controller = class Controller {
         }
     }
 
-    renderCards() {
-        this._renderCards();
-    }
+    renderCards() { this._renderCards(); }
 
     _renderCards() {
         if (this._syncOptionalSectionsCallback) this._syncOptionalSectionsCallback();
@@ -243,37 +223,15 @@ var Controller = class Controller {
 
         if (!this._notifications.length) return;
         for (const notification of this._notifications) {
-            const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-            item.remove_all_children();
-            item.add_style_class_name('pingoose-card-row');
-            const card = new St.BoxLayout({vertical: true, reactive: true, x_expand: false, x_align: Clutter.ActorAlign.CENTER, style_class: 'pingoose-card'});
-            const dismiss = new St.Button({label: '×', accessible_name: 'Dismiss notification',
-                can_focus: true, style_class: 'pingoose-dismiss', y_align: Clutter.ActorAlign.CENTER});
-            dismiss.connect('clicked', () => {
-                this._unreadIds?.delete(notification.id);
-                this._notifications = this._notifications.filter(entry => entry.id !== notification.id);
-                this._saveCardState?.();
-                this._renderCards();
-            });
-            item.add_child(dismiss);
-            card.add_child(new St.Label({
-                text: notification.test ? 'Test Notification' : notification.category === 'update' ? 'A new update was installed' : notification.category === 'agenda' ? '42 · New Agenda Event' : '42 · New Evaluation',
-                style_class: 'pingoose-card-title'
-            }));
-            const body = new St.Label({text: notification.body, style_class: 'pingoose-card-body'});
-            body.clutter_text.line_wrap = true;
-            body.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
-            body.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
-            card.add_child(body);
-            card.add_child(new St.Label({text: `Received at ${notification.time}`, style_class: 'pingoose-card-time'}));
-            item.add_child(card);
-            indicator.cards.addMenuItem(item);
+            this._renderNotificationCard(notification, indicator);
         }
         const footer = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
         footer.remove_all_children();
         footer.set_style('padding: 6px 16px 6px 0; spacing: 0;');
-        const clear = new St.Button({label: 'Clear All', can_focus: true,
-            x_expand: true, x_align: Clutter.ActorAlign.END, style_class: 'pingoose-clear-button'});
+        const clear = new St.Button({
+            label: 'Clear All', can_focus: true,
+            x_expand: true, x_align: Clutter.ActorAlign.END, style_class: 'pingoose-clear-button'
+        });
         clear.connect('clicked', () => {
             this._notifications = [];
             this._unreadIds = new Set();
@@ -282,6 +240,39 @@ var Controller = class Controller {
         });
         footer.add_child(clear);
         indicator.cards.addMenuItem(footer);
+    }
+
+    _renderNotificationCard(notification, indicator) {
+        const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        item.remove_all_children();
+        item.add_style_class_name('pingoose-card-row');
+        const card = new St.BoxLayout({
+            vertical: true, reactive: true, x_expand: false, x_align: Clutter.ActorAlign.CENTER,
+            style_class: 'pingoose-card'
+        });
+        const dismiss = new St.Button({
+            label: '×', accessible_name: 'Dismiss notification',
+            can_focus: true, style_class: 'pingoose-dismiss', y_align: Clutter.ActorAlign.CENTER
+        });
+        dismiss.connect('clicked', () => {
+            this._unreadIds?.delete(notification.id);
+            this._notifications = this._notifications.filter(entry => entry.id !== notification.id);
+            this._saveCardState?.();
+            this._renderCards();
+        });
+        item.add_child(dismiss);
+        card.add_child(new St.Label({
+            text: notification.test ? 'Test Notification' : notification.category === 'update' ? 'A new update was installed' : notification.category === 'agenda' ? '42 · New Agenda Event' : '42 · New Evaluation',
+            style_class: 'pingoose-card-title'
+        }));
+        const body = new St.Label({text: notification.body, style_class: 'pingoose-card-body'});
+        body.clutter_text.line_wrap = true;
+        body.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+        body.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+        card.add_child(body);
+        card.add_child(new St.Label({text: `Received at ${notification.time}`, style_class: 'pingoose-card-time'}));
+        item.add_child(card);
+        indicator.cards.addMenuItem(item);
     }
 
     destroy() {
