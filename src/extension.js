@@ -198,6 +198,10 @@ class Pingoose {
         this._renderCards();
     }
 
+    _sessionSlotRequest(command, callback) {
+        this._slotManager?.sessionSlotRequest(command, callback);
+    }
+
     _send(command) {
         if (this._bridge) {
             this._bridge.send(command);

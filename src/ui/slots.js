@@ -137,7 +137,8 @@ var Controller = class Controller {
             });
             return GLib.SOURCE_REMOVE;
         });
-        if (!this._slotsBusy) this._requestSlots(command);
+        this._slotsBusy = false;
+        this._requestSlots(command);
     }
 
     requestSlots(command) { this._requestSlots(command); }
