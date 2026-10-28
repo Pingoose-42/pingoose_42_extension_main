@@ -70,16 +70,13 @@ trap 'rm -rf -- "$build"' EXIT
 )
 # Include the actual source revision without modifying the working tree.
 /usr/bin/python3 - "$package_dir" "$build/pingoose@local.shell-extension.zip" <<'PYRECEIPT'
-import importlib.util, json, subprocess, sys, zipfile
+import importlib.util, json, sys, zipfile
 from pathlib import Path
 root = Path(sys.argv[1])
 spec = importlib.util.spec_from_file_location('updater', root / 'worker/updater.py')
 updater = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(updater)
-receipt = None
-if (root.parent / '.git').exists():
-    sha = subprocess.check_output(['git', '-C', str(root.parent), 'rev-parse', 'HEAD'], text=True).strip()
-    receipt = {'source': updater.configuration(root), 'sha': sha}
+receipt = updater.source_receipt(root)
 with zipfile.ZipFile(sys.argv[2], 'a') as archive:
     archive.writestr('config/installed.json', json.dumps(receipt))
 PYRECEIPT

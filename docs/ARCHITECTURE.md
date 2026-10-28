@@ -87,6 +87,10 @@ bash src/scripts/install.sh
 
 패키지 스크립트는 런타임 디렉토리를 포함합니다. 새 런타임 최상위 디렉토리를 추가하면 `package.sh`와 `install.sh`의 `--extra-source` 목록도 함께 확인합니다. 업데이트 설정의 `config` 디렉토리도 패키지에 포함됩니다. 설치는 GNOME 세션을 자동 재시작하지 않습니다.
 
+루트 `install.sh`를 로컬 소스에서 실행하면 `src/scripts/install.sh`로 설치합니다. 스크립트만 내려받아 실행하면 `main`의 커밋 SHA를 확인하고, 해당 커밋의 `worker/updater.py`를 받아 `bootstrap` 명령으로 설치합니다. 최초 설치와 자동 업데이트는 `download_source()`와 `install_source()`를 함께 사용합니다.
+
+내려받은 소스의 저장소·브랜치·커밋은 임시 소스 루트의 `.pingoose-source.json`에 기록합니다. 패키지를 만들 때 `source_receipt()`로 이 기록을 읽어 `config/installed.json`에 넣습니다. 로컬 소스에서는 Git 커밋을 읽습니다. 이 기록은 다음 업데이트에서 실제 설치 버전을 비교할 때 사용합니다.
+
 ## 변경 시 지킬 경계
 
 - Shell 전용 `St`·`Main` 모듈을 독립 실행되는 `worker`에 가져오지 않습니다.
