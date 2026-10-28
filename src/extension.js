@@ -344,52 +344,25 @@ class Pingoose {
     }
 
     disable() {
-        this._panelShortcut?.destroy();
-        this._panelShortcut = null;
-        this._autoHideScrollbars?.destroy();
-        this._autoHideScrollbars = null;
-        this._bannerDuration?.destroy();
-        this._bannerDuration = null;
-        this._updater?.destroy();
-        this._updater = null;
-        this._projectPanel?.destroy();
-        this._projectPanel = null;
-        this._servicePanel?.destroy();
-        this._servicePanel = null;
-        this._chatPanel?.destroy();
-        this._chatPanel = null;
-
+        for (const comp of [
+            this._panelShortcut, this._autoHideScrollbars, this._bannerDuration,
+            this._updater, this._projectPanel, this._servicePanel, this._chatPanel,
+            this._notificationManager, this._agendaManager, this._evalManager, this._slotManager,
+            this._optionsMenu, this._bridge, this._indicator,
+        ]) {
+            comp?.destroy();
+        }
         this._sessionHook?.disable();
         this._sessionHook = null;
-
-        this._notificationManager?.destroy();
-        this._notificationManager = null;
-        this._agendaManager?.destroy();
-        this._agendaManager = null;
-        this._evalManager?.destroy();
-        this._evalManager = null;
-        this._slotManager?.destroy();
-        this._slotManager = null;
-
-        this._optionsMenu?.destroy();
-        this._optionsMenu = null;
-        this._optionsManager = null;
-
         if (this._evaluationClock) GLib.source_remove(this._evaluationClock);
         this._evaluationClock = 0;
         if (this._themeChanged) this._settings.disconnect(this._themeChanged);
         this._themeChanged = 0;
         if (this._profileClock) GLib.source_remove(this._profileClock);
         this._profileClock = 0;
-
-        this._bridge?.destroy();
-        this._bridge = null;
-
         this._settings = null;
         this._notificationSettings = null;
-
-        this._indicator?.destroy();
-        this._indicator = null;
+        this._optionsManager = null;
     }
 }
 
