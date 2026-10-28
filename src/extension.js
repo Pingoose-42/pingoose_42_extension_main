@@ -317,6 +317,7 @@ class Pingoose {
             return;
         }
         if (message.type === 'slots') {
+            if (this._slotManager) { this._slotManager.onSlotsMessage(message); return; }
             if (this._refreshPending) {
                 this._refreshSlotsDone = Array.isArray(message.rows) && !message.error;
                 if (message.error) this._finishRefresh(false);
@@ -342,6 +343,7 @@ class Pingoose {
             return;
         }
         if (message.type === 'agenda-action') {
+            if (this._agendaManager) { this._agendaManager.onAgendaActionMessage(message); return; }
             this._agendaBusy = null;
             this._agendaActionStatus = {id: message.id, text: message.error || ''};
             this._renderAgenda();
@@ -354,6 +356,7 @@ class Pingoose {
             return;
         }
         if (message.type === 'evaluations' && Array.isArray(message.rows) && message.rows.length <= 10000) {
+            if (this._evalManager) { this._evalManager.onEvaluationsMessage(message); return; }
             this._evaluations = [...message.rows, ...this._evaluations.filter(row => row.devTest)];
             this._renderEvaluations();
             return;
