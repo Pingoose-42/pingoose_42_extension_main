@@ -259,24 +259,7 @@ class Pingoose {
     }
 
     _writeNext() {
-        if (this._bridge) return;
-        if (this._writing || !this._process || !this._commands.length)
-            return;
-        const proc = this._process;
-        const cancel = this._cancel;
-        const bytes = ByteArray.fromString(`${this._commands.shift()}\n`);
-        this._writing = true;
-        proc.get_stdin_pipe().write_all_async(bytes, GLib.PRIORITY_DEFAULT, cancel, (stream, result) => {
-            try { stream.write_all_finish(result); }
-            catch (_) {
-                if (this._process === proc && this._indicator)
-                    this._indicator.status.label.text = 'Unable to send a command to the Intra helper.';
-            }
-            if (this._process === proc) {
-                this._writing = false;
-                this._writeNext();
-            }
-        });
+        // Stream writing is handled by WorkerBridge.
     }
 
     _message(message) {
