@@ -62,6 +62,8 @@ class Pingoose {
             onSaveCardState: () => this._notificationManager?.saveCardState()
         });
 
+        this._agendaCalendar = new Me.imports.services.agendaCalendar.Controller(this._settings, () => this._send('agenda:refresh'));
+
         this._agendaManager = new AgendaManager(this._indicator, this._bridge, this._settings, {
             optionsManager: this._optionsManager,
             onVisibilitySync: () => this._syncOptionalSections()
@@ -112,6 +114,7 @@ class Pingoose {
         );
         this._sessionHook.enable();
 
+        this._maintenance = new Me.imports.ui.maintenance.Controller(this._indicator,()=>this._syncOptionalSections(),()=>this._send('refresh'));
         this._bindBridgeEvents();
         this._messageHandlers = this._initMessageHandlers();
         this._startWorker();
@@ -191,6 +194,7 @@ class Pingoose {
         this._projectPanel?.reset();
         this._chatPanel?.reset();
         this._slotManager?.clear();
+        this._agendaCalendar?.clear();
         this._agendaManager?.clear();
         this._evalManager?.clear();
         this._notificationManager?.clear();
@@ -225,8 +229,17 @@ class Pingoose {
     _message(message) {
         if (!message || typeof message !== 'object' || this._resetting) return;
 
+        if(message.type==='test-maintenance'){
+            if(Me.imports.models.featureFlags.enabled(this._settings,'hidden-dev-options'))this._maintenance?.test();
+            return;
+        }
+        if(message.type==='refresh-state')this._maintenance?.result(message.state);
+        if(message.type==='profile')this._maintenance?.observe(message);
+        if(this._maintenance?.active && ['status','signed-out','profile'].includes(message.type))return;
+
         // Agenda snapshot compatibility block
         if (message.type === 'agenda' && Array.isArray(message.rows) && message.rows.length <= 100) {
+            this._agendaCalendar?.observe(message.rows, message.subject);
             this._agendaAll = [...message.rows, ...(this._agendaAll || this._agenda).filter(row => row.devTest)];
             this._agenda = this._agendaAll.filter(row => !this._dismissedAgendaIds?.has(String(row.id)));
             this._renderAgenda();
@@ -340,7 +353,7 @@ class Pingoose {
 
     disable() {
         for (const comp of [
-            this._panelShortcut, this._autoHideScrollbars, this._bannerDuration,
+            this._agendaCalendar, this._maintenance, this._panelShortcut, this._autoHideScrollbars, this._bannerDuration,
             this._updater, this._projectPanel, this._servicePanel, this._chatPanel,
             this._notificationManager, this._agendaManager, this._evalManager, this._slotManager,
             this._optionsMenu, this._bridge, this._indicator,

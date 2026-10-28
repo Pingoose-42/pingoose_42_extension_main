@@ -228,7 +228,7 @@ var Controller = class Controller {
             const button = new St.Button({
                 label: busy ? 'Updating…' : row.subscribed ? 'Unsubscribe' : 'Subscribe',
                 reactive: !this._agendaBusy, can_focus: !this._agendaBusy,
-                style_class: 'pingoose-clear-button'
+                style_class: 'pingoose-clear-button ' + (row.subscribed ? 'pingoose-agenda-unsubscribe' : 'pingoose-agenda-subscribe')
             });
             button.connect('clicked', () => {
                 if (this._agendaBusy) return;

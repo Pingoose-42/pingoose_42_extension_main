@@ -20,6 +20,8 @@ function clearDirectory(path) {
     } finally { children.close(null); }
 }
 function clearAll() {
+    const calendarSource = Gio.File.new_for_path(GLib.build_filenamev([GLib.get_user_config_dir(), 'evolution', 'sources', 'pingoose-agenda.source']));
+    if (calendarSource.query_exists(null)) calendarSource.delete(null);
     for(const base of new Set([GLib.get_user_state_dir(),GLib.get_user_cache_dir(),GLib.get_user_data_dir()]))
         clearDirectory(GLib.build_filenamev([base,'pingoose']));
     const state=GLib.build_filenamev([GLib.get_user_state_dir(),'pingoose']);

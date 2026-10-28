@@ -84,7 +84,7 @@ var AgendaClient = class AgendaClient {
                 state.agendaIds = [...new Set([...state.agendaIds, ...rows.map(row => row.id)])].slice(-2000);
                 worker.writeState(state);
                 if (worker.evaluationState?.subject === state.subject) worker.evaluationState.agendaIds = state.agendaIds;
-                emit({type: 'agenda', rows});
+                emit({type: 'agenda', rows, subject: identity.subject});
                 worker.refreshPart('agenda');
                 for (const row of rows) if (!seen.has(row.id)) emit({type: 'notification', id: `agenda:${row.id}`,
                     category: 'agenda', body: `New agenda event · ${row.name}\n${new Date(row.begin).toLocaleString('en-GB')}${row.location ? ` · ${row.location}` : ''}`});

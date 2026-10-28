@@ -371,3 +371,18 @@
 
 .pingoose-counterpart-link.pingoose-counterpart-nick { color: #b8c2cc; }
 .pingoose-light .pingoose-counterpart-link.pingoose-counterpart-nick { color: #596673; }
+
+.pingoose-maintenance-notice { margin: 6px 30px 6px 6px; padding: 14px; spacing: 12px; border-radius: 12px; background-color: rgba(127,127,127,0.14); }
+.pingoose-maintenance-title { color: #dda94b; font-weight: bold; font-size: 1.1em; text-align: center; }
+.pingoose-maintenance-body { color: #ffffff; text-align: center; }
+
+.pingoose-maintenance-header { spacing: 8px; }
+.pingoose-maintenance-refresh { padding: 7px; border-radius: 9px; background-color: rgba(127,127,127,0.18); }
+.pingoose-maintenance-refresh:hover { background-color: rgba(127,127,127,0.32); }
+.pingoose-maintenance-failure { color: white; background-color: #d94141; border-radius: 10px; width: 20px; height: 20px; text-align: center; font-weight: bold; }
+.pingoose-dark .pingoose-agenda-subscribe, .pingoose-light .pingoose-agenda-subscribe { color: #4dbb92; }
+.pingoose-dark .pingoose-agenda-unsubscribe, .pingoose-light .pingoose-agenda-unsubscribe { color: #ef6464; }
+
+.pingoose-maintenance-controls { spacing: 8px; }
+
+.pingoose-maintenance-description { margin-top: 6px; }

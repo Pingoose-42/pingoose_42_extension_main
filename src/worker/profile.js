@@ -47,6 +47,7 @@ function readProfileDOM(login) {
         } catch (_) { /* Ignore unrelated links. */ }
     }
     return JSON.stringify({
+        maintenanceText: (text.match(/Scheduled Maintenance[\s\S]{0,1000}/i) || [''])[0],
         profileLogin: avatar?.src.match(/\/([a-zA-Z0-9_-]+)\.(?:jpg|jpeg|png|webp)(?:[?#]|$)/i)?.[1] || null,
         projects: projects.length || /\bprojects\b/i.test(text) ? projects : null,
         name: document.querySelector('h2')?.textContent.trim().slice(0, 100) || '',

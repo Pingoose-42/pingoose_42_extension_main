@@ -142,6 +142,7 @@ Settings → 42 Services에서 HTTPS 사이트를 최대 30개까지 추가·수
 | Toggle Pingoose shortcut | 기본 미지정. 키 조합으로 메인 패널 열기·닫기, Reset으로 해제 |
 | Color mode | Dark. Dark / Light 선택 |
 | Check for Updates | 로그인 후에도 즉시 GitHub 업데이트 확인 |
+| Sync agenda with Calendar | 기본 꺼짐. 아젠다 제목·시작·종료 시각을 로컬 Pingoose Agenda 캘린더에 동기화합니다. PC 시간대로 표시되며, 종료된 일정은 서버 목록에서 사라져도 유지됩니다. 끄면 동기화만 중지하고 저장된 일정은 유지합니다. General의 아젠다 동기화 옵션 아래 Management 버튼으로 별도 관리 창을 열어 저장된 일정을 개별 삭제할 수 있으며 삭제한 일정은 동기화를 껐다 켜면 서버에 남아 있는 경우 다시 가져옵니다. Evolution Data Server가 필요합니다. |
 | Auto Update | 켜짐. 새 커밋 발견 시 자동 설치. 끄면 Yes/No로 확인 |
 | Auto-close side panels | 꺼짐. 켜면 메뉴를 닫을 때 프로젝트·서비스·채팅의 옆 패널도 닫음 |
 | Agenda Reset | 숨긴 아젠다 복원 및 현재 목록 재조회. 구독·피드백 상태는 변경하지 않음 |

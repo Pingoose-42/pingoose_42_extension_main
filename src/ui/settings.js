@@ -80,7 +80,7 @@ var Controller = class Controller {
                 if(!Flags.enabled(this._settings,'hidden-dev-options'))return;
                 this._agendaAll=[...(this._agendaAll || this._agenda),row];this._agenda=[...this._agenda,row];this._renderAgenda();settings.close();
                 this._message({type:'notification',id:row.id,category:'agenda',body:'New agenda event · Test Agenda'});
-            });
+            },()=>{settings.close();this._message({type:'test-maintenance'});});
         const syncDev=()=>{devMenu.visible=Flags.enabled(this._settings,'hidden-dev-options');};
         syncDev();
         const showMain = () => {
@@ -90,7 +90,7 @@ var Controller = class Controller {
         };
         const sync = () => this._applyTheme();
         this._themeChanged = this._settings.connect('changed', (_settings, key) => {
-            if (key === 'update-check-request') return;
+            if (['update-check-request', 'agenda-calendar-status', 'sync-agenda-calendar', 'deleted-calendar-events'].includes(key)) return;
             if (key === 'logout-request') {
                 if(!this._resetting){this._chatPanel?.reset();this._send('logout');}
                 return;

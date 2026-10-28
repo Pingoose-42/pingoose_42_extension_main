@@ -1,7 +1,7 @@
 // Development actions are exposed only through the hidden feature gate.
 const PopupMenu = imports.ui.popupMenu;
 let evaluationSequence = 0;
-function addOptions(settings, sendTest, addEvaluation, preferences, addAgenda) {
+function addOptions(settings, sendTest, addEvaluation, preferences, addAgenda, testMaintenance) {
     const menu = new PopupMenu.PopupSubMenuMenuItem('Dev Options');
     const test = new PopupMenu.PopupMenuItem('Send Test Notification');
     test.activate = () => sendTest();
@@ -21,6 +21,11 @@ function addOptions(settings, sendTest, addEvaluation, preferences, addAgenda) {
             begin:new Date(Date.now()).toISOString(),end:new Date(Date.now()+3600000).toISOString(),feedback:false,
         });
         menu.menu.addMenuItem(agenda);
+    }
+    if(testMaintenance){
+        const maintenance=new PopupMenu.PopupMenuItem('Test Maintenance (1 minute)');
+        maintenance.activate=()=>testMaintenance();
+        menu.menu.addMenuItem(maintenance);
     }
     settings.addMenuItem(menu);
     return menu;

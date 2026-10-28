@@ -10,6 +10,31 @@ function build(settings) {
     const autoClose=new Gtk.Switch({valign:Gtk.Align.CENTER});
     settings.bind('auto-close-panels',autoClose,'active',Gio.SettingsBindFlags.DEFAULT);
     Common.row(box,'Auto-close side panels',autoClose);
+    const calendarSync = new Gtk.Switch({valign: Gtk.Align.CENTER});
+    settings.bind('sync-agenda-calendar', calendarSync, 'active', Gio.SettingsBindFlags.DEFAULT);
+    Common.row(box, 'Sync agenda with Calendar', calendarSync);
+    const manageCalendar = new Gtk.Button({label: 'Management'});
+    let managementWindow = null;
+    manageCalendar.connect('clicked', () => {
+        if (!managementWindow) {
+            managementWindow = new Gtk.Window({title: 'Agenda Management',
+                transient_for: box.get_root(), destroy_with_parent: true,
+                default_width: 640, default_height: 600});
+            const content = imports.misc.extensionUtils.getCurrentExtension().imports.preferences.management.build(settings);
+            content.margin_top = content.margin_bottom = content.margin_start = content.margin_end = 24;
+            managementWindow.set_child(Common.scrollPage(content));
+            managementWindow.connect('close-request', () => {
+                managementWindow = null;
+                return false;
+            });
+        }
+        managementWindow.present();
+    });
+    box.append(manageCalendar);
+    box.append(new Gtk.Label({label: 'Show Intra agenda titles and times in a separate local Pingoose Agenda calendar. Turning this off pauses syncing and keeps saved events. Manage saved events in Management. Requires Evolution Data Server.', xalign: 0, wrap: true}));
+    const calendarStatus = new Gtk.Label({xalign: 0, wrap: true});
+    settings.bind('agenda-calendar-status', calendarStatus, 'label', Gio.SettingsBindFlags.GET);
+    box.append(calendarStatus);
     const checkUpdate = new Gtk.Button({label: 'Check for Updates'});
     checkUpdate.connect('clicked', () => {
         settings.set_string('update-check-request', GLib.uuid_string_random());
