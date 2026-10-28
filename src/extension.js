@@ -190,7 +190,11 @@ class Pingoose {
     get _feedback() { return this._evalManager?.feedback || {}; }
     set _feedback(val) { if (this._evalManager) this._evalManager._feedback = val; }
     get _evaluationTimes() { return this._evalManager?._evaluationTimes; }
+    set _evaluationTimes(val) { if (this._evalManager) this._evalManager._evaluationTimes = val; }
     get _evaluationActors() { return this._evalManager?._evaluationActors; }
+    set _evaluationActors(val) { if (this._evalManager) this._evalManager._evaluationActors = val; }
+    get _evaluationKey() { return this._evalManager?._evaluationKey; }
+    set _evaluationKey(val) { if (this._evalManager) this._evalManager._evaluationKey = val; }
 
     get _agenda() { return this._agendaManager?.agenda || []; }
     set _agenda(val) { if (this._agendaManager) this._agendaManager._agenda = val; }
@@ -204,6 +208,8 @@ class Pingoose {
     set _agendaActionStatus(val) { if (this._agendaManager) this._agendaManager._agendaActionStatus = val; }
     get _agendaExpanded() { return this._agendaManager?._agendaExpanded; }
     set _agendaExpanded(val) { if (this._agendaManager) this._agendaManager._agendaExpanded = val; }
+    get _agendaTimes() { return this._agendaManager?._agendaTimes; }
+    set _agendaTimes(val) { if (this._agendaManager) this._agendaManager._agendaTimes = val; }
 
     get _notifications() { return this._notificationManager?.notifications || []; }
     set _notifications(val) { if (this._notificationManager) this._notificationManager._notifications = val; }
