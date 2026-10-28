@@ -97,3 +97,15 @@ assert(walk(realHook._dialog.contentLayout).some(a=>a.text==='Scheduled evaluati
 assert(walk(realHook._dialog.contentLayout).some(a=>a.text?.includes('Real Project')));
 realHook._dialog.buttons.find(b=>b.label==='Cancel').action();realHook.disable();
 console.log('PASS: real scheduled matches from fresh evaluation snapshot warn and deduplicate reserved slots');
+ctx.logError=()=>{};
+const exceptionHook=new ctx.SystemSessionHook((command,callback)=>{
+ if(command==='slots:list')callback({rows:[future]});
+ else throw Error('Worker unavailable');
+},()=>true);
+exceptionHook.enable();const beforeException=loggedOut;
+new Native()._confirm('ConfirmedLogout');
+exceptionHook._dialog.buttons.find(b=>b.label==='Close Slots & Log Out').action();
+assert.equal(loggedOut,beforeException,'close failure must not log out');
+assert.match(exceptionHook._dialog._status.text,/still logged in/);
+exceptionHook._dialog.buttons.find(b=>b.label==='Cancel').action();exceptionHook.disable();
+console.log('PASS: synchronous close request failure keeps session and offers retry');

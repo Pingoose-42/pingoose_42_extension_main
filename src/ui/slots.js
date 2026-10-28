@@ -1,188 +1,384 @@
-const CountLabel = imports.misc.extensionUtils.getCurrentExtension().imports.ui.countLabel;
 const {Clutter, GLib, Pango, St} = imports.gi;
 const PopupMenu = imports.ui.popupMenu;
+const Me = imports.misc.extensionUtils.getCurrentExtension();
+const CountLabel = Me.imports.ui.countLabel;
 
 var Controller = class Controller {
+    initManager(indicator, bridge, settings, options = {}) {
+        this._indicator = indicator;
+        this._bridge = bridge;
+        this._settings = settings;
+        this._syncOptionalSectionsCallback = options.onVisibilitySync || (() => {});
+        this._onRefreshStateCallback = options.onRefreshState || null;
+
+        this._slots = [];
+        this._slotsExpanded = this._settings?.get_boolean('expand-slots') || false;
+        this._slotsBusy = false;
+        this._slotsError = null;
+        this._slotDraft = null;
+        this._slotCreateExpanded = false;
+        this._slotCreating = false;
+        this._slotPollingReady = false;
+        this._slotPollBucket = null;
+
+        this._sessionSlotsCallback = null;
+        this._sessionSlotsTimer = 0;
+        this._sessionSlotResult = null;
+        this._sessionEvaluationResult = null;
+
+        if (this._indicator?.visitIntra) {
+            this._visitIntraSignal = this._indicator.visitIntra.connect('clicked', () => {
+                this._slotsExpanded = !this._slotsExpanded;
+                this._settings?.set_boolean('expand-slots', this._slotsExpanded);
+                if (this._slotsExpanded) this._requestSlots('slots:list');
+                else this._renderSlots();
+            });
+        }
+
+        if (this._bridge) {
+            this._unsubSlots = this._bridge.on('slots', msg => this.onSlotsMessage(msg));
+            this._unsubEvalCheck = this._bridge.on('evaluation-check', msg => {
+                this._sessionEvaluationResult = msg;
+                this._finishSessionCheck();
+            });
+            this._unsubStatus = this._bridge.on('status', msg => this.onStatusMessage(msg));
+            this._unsubSignOut = this._bridge.on('signed-out', () => this.clear());
+        }
+    }
+
+    get slots() { return this._slots; }
+    get slotsExpanded() { return this._slotsExpanded; }
+    set slotsExpanded(v) { this._slotsExpanded = v; }
+    get slotsBusy() { return this._slotsBusy; }
+
+    onSlotsMessage(message) {
+        this._slotsBusy = false;
+        if (this._slotCreating && !message.error && message.created > 0) {
+            this._slotCreateExpanded = false;
+            this._slotDraft = null;
+        }
+        this._slotCreating = false;
+        if (Array.isArray(message.rows) && message.rows.length <= 1000) {
+            this._slots = message.rows;
+        }
+        this._slotsError = typeof message.error === 'string' ? message.error.slice(0, 200) : null;
+        this._renderSlots();
+        this._sessionSlotResult = message;
+        this._finishSessionCheck();
+        this._onRefreshStateCallback?.(Array.isArray(message.rows) && !message.error, message.error);
+    }
+
+    onStatusMessage(message) {
+        if (message.state === 'login-needed') {
+            this._slotPollingReady = false;
+            this._slotPollBucket = null;
+        } else if (['authenticated', 'watching'].includes(message.state)) {
+            this._slotPollingReady = true;
+            this._pollSlotsIfDue();
+        }
+    }
+
+    clear() {
+        this._slots = [];
+        this._slotPollingReady = false;
+        this._slotPollBucket = null;
+        this._slotDraft = null;
+        this._slotCreateExpanded = false;
+        this._slotsExpanded = false;
+        this._slotsBusy = false;
+        this._slotsError = null;
+        this._renderSlots();
+    }
+
+    pollSlotsIfDue(time = Date.now()) { this._pollSlotsIfDue(time); }
+
     _pollSlotsIfDue(time = Date.now()) {
-        if(!this._slotPollingReady || this._indicator.loginOnly || this._slotsBusy)return;
-        const bucket=Math.floor(time / 900000);
-        if(this._slotPollBucket===bucket)return;
-        this._slotPollBucket=bucket;
+        if (!this._slotPollingReady || this._indicator?.loginOnly || this._slotsBusy) return;
+        const bucket = Math.floor(time / 900000);
+        if (this._slotPollBucket === bucket) return;
+        this._slotPollBucket = bucket;
         this._requestSlots('slots:list');
     }
 
+    finishSessionCheck() { this._finishSessionCheck(); }
+
     _finishSessionCheck() {
-        if(!this._sessionSlotsCallback || !this._sessionSlotResult || !this._sessionEvaluationResult)return;
-        const callback=this._sessionSlotsCallback;
-        this._sessionSlotsCallback=null;
-        if(this._sessionSlotsTimer)GLib.source_remove(this._sessionSlotsTimer);
-        this._sessionSlotsTimer=0;
-        callback({...this._sessionSlotResult,evaluations:this._sessionEvaluationResult.rows,
-            evaluationError:this._sessionEvaluationResult.error});
+        if (!this._sessionSlotsCallback || !this._sessionSlotResult || !this._sessionEvaluationResult) return;
+        const callback = this._sessionSlotsCallback;
+        this._sessionSlotsCallback = null;
+        if (this._sessionSlotsTimer) GLib.source_remove(this._sessionSlotsTimer);
+        this._sessionSlotsTimer = 0;
+        callback({
+            ...this._sessionSlotResult,
+            evaluations: this._sessionEvaluationResult.rows,
+            evaluationError: this._sessionEvaluationResult.error
+        });
     }
 
+    sessionSlotRequest(command, callback) { this._sessionSlotRequest(command, callback); }
+
     _sessionSlotRequest(command, callback) {
-        // Reuse an in-flight list request rather than opening a second WebKit session.
         this._sessionSlotsCallback = callback;
-        this._sessionSlotResult=null;
-        this._sessionEvaluationResult=command==='slots:list'?null:{};
-        if(command==='slots:list')this._send('evaluations:check');
+        this._sessionSlotResult = null;
+        this._sessionEvaluationResult = command === 'slots:list' ? null : {};
+        if (command === 'slots:list') {
+            if (this._bridge) this._bridge.send('evaluations:check');
+            else if (this._send) this._send('evaluations:check');
+        }
         if (this._sessionSlotsTimer) GLib.source_remove(this._sessionSlotsTimer);
         this._sessionSlotsTimer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 65, () => {
             this._sessionSlotsTimer = 0;
             const pending = this._sessionSlotsCallback;
             this._sessionSlotsCallback = null;
-            pending?.({...this._sessionSlotResult,error:this._sessionSlotResult?.error || (!this._sessionSlotResult?'Slot request timed out.':null),evaluationError:'Evaluation check timed out.'});
+            pending?.({
+                ...this._sessionSlotResult,
+                error: this._sessionSlotResult?.error || (!this._sessionSlotResult ? 'Slot request timed out.' : null),
+                evaluationError: 'Evaluation check timed out.'
+            });
             return GLib.SOURCE_REMOVE;
         });
-        if (!this._slotsBusy) this._requestSlots(command);
+        this._slotsBusy = false;
+        this._requestSlots(command);
     }
+
+    requestSlots(command) { this._requestSlots(command); }
 
     _requestSlots(command) {
         if (this._slotsBusy) return;
-        if(command.startsWith('slots:open') && !imports.misc.extensionUtils.getCurrentExtension().imports.models.featureFlags.enabled(this._settings,'hidden-auto-slots'))return;
+        const flags = Me?.imports?.models?.featureFlags || imports.misc.extensionUtils.getCurrentExtension().imports.models.featureFlags;
+        if (command.startsWith('slots:open') && !flags.enabled(this._settings, 'hidden-auto-slots')) return;
         this._slotCreating = command.startsWith('slots:create:');
         this._slotsBusy = true;
         this._slotsError = null;
-        this._send(command);
+        if (this._bridge) this._bridge.send(command);
+        else if (this._send) this._send(command);
         this._renderSlots();
     }
 
+    renderSlots() { this._renderSlots(); }
+
     _renderSlots() {
-        this._syncOptionalSections();
+        if (this._syncOptionalSectionsCallback) this._syncOptionalSectionsCallback();
+        else if (typeof this._syncOptionalSections === 'function') this._syncOptionalSections();
         const indicator = this._indicator;
-        CountLabel.update(indicator.visitIntra.get_child(), 'Evaluation Slots', this._slots?.length || 0, this._slotsExpanded);
-        indicator.visitIntra.style_class='pingoose-visit-intra'+(this._slotsExpanded ? ' pingoose-toggle-active' : '');
+        if (!indicator) return;
+
+        if (indicator.visitIntra) {
+            CountLabel.update(indicator.visitIntra.get_child(), 'Evaluation Slots', this._slots?.length || 0, this._slotsExpanded);
+            indicator.visitIntra.style_class = 'pingoose-visit-intra' + (this._slotsExpanded ? ' pingoose-toggle-active' : '');
+        }
+
         const section = indicator.slotItems;
+        if (!section) return;
         section.removeAll();
-        const textRow = (text,error=false) => {
-            const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-            item.remove_all_children(); item.set_style('padding: 6px 24px 6px 0;');
-            const label = new St.Label({text, style_class: error ? 'pingoose-slot-label pingoose-slot-error' : 'pingoose-slot-label'});
-            label.clutter_text.line_wrap = true;
-            label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
-            label.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
-            item.add_child(label); section.addMenuItem(item);
-        };
 
         if (this._slotsBusy) {
-            const loading=new PopupMenu.PopupBaseMenuItem({reactive:false,can_focus:false});
-            loading.add_child(imports.misc.extensionUtils.getCurrentExtension().imports.ui.spinner.create(20));
-            section.addMenuItem(loading);return;
+            const loading = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+            const spinner = Me?.imports?.ui?.spinner || imports.misc.extensionUtils.getCurrentExtension().imports.ui.spinner;
+            loading.add_child(spinner.create(20));
+            section.addMenuItem(loading);
+            return;
         }
-        if (this._slotsError) textRow(this._slotsError,true);
-        for (const slot of this._slots || []) {
-            const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-            item.remove_all_children(); item.set_style('padding: 6px 24px 6px 0; spacing: 8px;');
-            const format = value => new Date(value).toLocaleString('en-GB', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
-            const label = new St.Label({text: `${format(slot.start)} – ${format(slot.end)}`, x_expand: false, y_align:Clutter.ActorAlign.CENTER, style_class: slot.matched ? 'pingoose-slot-label pingoose-slot-matched' : 'pingoose-slot-label pingoose-profile-level'});
-            label.clutter_text.line_wrap = true;
-            item.add_child(label);
-            const minutes=Math.max(0,Math.round((Date.parse(slot.end)-Date.parse(slot.start))/60000));
-            const duration=[[Math.floor(minutes/1440),'d'],[Math.floor(minutes%1440/60),'h'],[minutes%60,'m']]
-                .filter(([value])=>value>0).map(([value,unit])=>`${value} ${unit}`).join(' ');
-            if(duration)item.add_child(new St.Label({text:`(${duration})`,style_class:'pingoose-slot-duration',y_align:Clutter.ActorAlign.CENTER}));
-            item.add_child(new St.Widget({x_expand:true}));
-            if(slot.matched){
-                item.add_child(new St.Label({text:'Evaluation Matched',style_class:'pingoose-slot-matched',y_align:Clutter.ActorAlign.CENTER}));
-                section.addMenuItem(item);continue;
-            }
-            const close = new St.Button({label: '×', can_focus: true, accessible_name: 'Close slot', style_class: 'pingoose-dismiss'});
-            close.connect('clicked', () => this._requestSlots(`slots:close:${slot.id}`));
-            item.add_child(close); section.addMenuItem(item);
+
+        if (this._slotsError) this._renderTextRow(section, this._slotsError, true);
+        for (const slot of this._slots || []) this._renderSlotItem(slot, section);
+        if (!this._slots?.length && !this._slotsError) this._renderTextRow(section, 'No open slots.');
+
+        this._renderSlotsFooter(section);
+        if (this._slotCreateExpanded) this._renderSlotCreator(section);
+        if (this._slots?.some(row => !row.matched)) this._renderCloseAllRow(section);
+    }
+
+    _renderTextRow(section, text, error = false) {
+        const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        item.remove_all_children();
+        item.set_style('padding: 6px 24px 6px 0;');
+        const label = new St.Label({
+            text,
+            style_class: error ? 'pingoose-slot-label pingoose-slot-error' : 'pingoose-slot-label'
+        });
+        label.clutter_text.line_wrap = true;
+        label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+        label.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+        item.add_child(label);
+        section.addMenuItem(item);
+    }
+
+    _renderSlotItem(slot, section) {
+        const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        item.remove_all_children();
+        item.set_style('padding: 6px 24px 6px 0; spacing: 8px;');
+        const format = value => new Date(value).toLocaleString('en-GB', {
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        const label = new St.Label({
+            text: `${format(slot.start)} – ${format(slot.end)}`,
+            x_expand: false,
+            y_align: Clutter.ActorAlign.CENTER,
+            style_class: slot.matched ? 'pingoose-slot-label pingoose-slot-matched' : 'pingoose-slot-label pingoose-profile-level'
+        });
+        label.clutter_text.line_wrap = true;
+        item.add_child(label);
+
+        const minutes = Math.max(0, Math.round((Date.parse(slot.end) - Date.parse(slot.start)) / 60000));
+        const duration = [
+            [Math.floor(minutes / 1440), 'd'],
+            [Math.floor((minutes % 1440) / 60), 'h'],
+            [minutes % 60, 'm']
+        ].filter(([v]) => v > 0).map(([v, u]) => `${v} ${u}`).join(' ');
+
+        if (duration) item.add_child(new St.Label({text: `(${duration})`, style_class: 'pingoose-slot-duration', y_align: Clutter.ActorAlign.CENTER}));
+        item.add_child(new St.Widget({x_expand: true}));
+        if (slot.matched) {
+            item.add_child(new St.Label({text: 'Evaluation Matched', style_class: 'pingoose-slot-matched', y_align: Clutter.ActorAlign.CENTER}));
+            section.addMenuItem(item);
+            return;
         }
-        if (!this._slots?.length && !this._slotsError) textRow('No open slots.');
+        const close = new St.Button({label: '×', can_focus: true, accessible_name: 'Close slot', style_class: 'pingoose-dismiss'});
+        close.connect('clicked', () => this._requestSlots(`slots:close:${slot.id}`));
+        item.add_child(close);
+        section.addMenuItem(item);
+    }
+
+    _renderSlotsFooter(section) {
         const footer = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-        footer.remove_all_children(); footer.set_style('padding: 6px 24px 6px 0; spacing: 6px;');
+        footer.remove_all_children();
+        footer.set_style('padding: 6px 24px 6px 0; spacing: 6px;');
+
         const refresh = new St.Button({label: 'Refresh', can_focus: true, style_class: 'pingoose-clear-button'});
         refresh.connect('clicked', () => this._requestSlots('slots:list'));
         footer.add_child(refresh);
-        const create=new St.Button({label:'Create Slot',can_focus:true,style_class:'pingoose-clear-button'+(this._slotCreateExpanded ? ' pingoose-toggle-active' : '')});
-        create.connect('clicked',()=>{this._slotCreateExpanded=!this._slotCreateExpanded;this._renderSlots();});
+
+        const create = new St.Button({
+            label: 'Create Slot', can_focus: true,
+            style_class: 'pingoose-clear-button' + (this._slotCreateExpanded ? ' pingoose-toggle-active' : '')
+        });
+        create.connect('clicked', () => {
+            this._slotCreateExpanded = !this._slotCreateExpanded;
+            this._renderSlots();
+        });
         footer.add_child(create);
-        if(imports.misc.extensionUtils.getCurrentExtension().imports.models.featureFlags.enabled(this._settings,'hidden-auto-slots')){
-            const auto=new St.Button({label:'Auto Open',can_focus:true,style_class:'pingoose-clear-button'});
-            auto.connect('clicked',()=>this._requestSlots('slots:open-auto'));
+
+        const flags = Me?.imports?.models?.featureFlags || imports.misc.extensionUtils.getCurrentExtension().imports.models.featureFlags;
+        if (flags?.enabled(this._settings, 'hidden-auto-slots')) {
+            const auto = new St.Button({label: 'Auto Open', can_focus: true, style_class: 'pingoose-clear-button'});
+            auto.connect('clicked', () => this._requestSlots('slots:open-auto'));
             footer.add_child(auto);
         }
         section.addMenuItem(footer);
-        if(this._slotCreateExpanded){
-            const schedule=imports.misc.extensionUtils.getCurrentExtension().imports.models.slotSchedule;
-            const format=value=>{
-                const d=new Date(value),pad=n=>String(n).padStart(2,'0');
-                return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-            };
-            const earliest=()=>Math.ceil((Date.now()+1800000)/900000)*900000;
-            if(!Number.isFinite(this._slotDraft?.begin) || this._slotDraft.begin<earliest()){
-                const begin=earliest();
-                this._slotDraft={begin,end:begin+1800000};
-            }
-
-            const labels=[];
-            const sync=()=>{
-                for(const {key,date,hour,minute} of labels){
-                    const value=new Date(this._slotDraft[key]);
-                    date.text=`${String(value.getMonth()+1).padStart(2,'0')}/${String(value.getDate()).padStart(2,'0')}`;
-                    hour.text=String(value.getHours()).padStart(2,'0')+' h';
-                    minute.text=String(value.getMinutes()).padStart(2,'0')+' m';
-                }
-            };
-            const adjust=(key,delta)=>{
-                const draft=this._slotDraft;
-                const latest=Math.floor((Date.now()+7*86400000)/900000)*900000;
-                if(key==='begin'){
-                    const duration=draft.end-draft.begin;
-                    draft.begin=Math.max(earliest(),Math.min(draft.begin+delta,latest-duration));
-                    draft.end=draft.begin+duration;
-                }else{
-                    draft.end=Math.max(draft.begin+900000,Math.min(draft.end+delta,latest));
-                }
-                sync();
-            };
-            const cardItem=new PopupMenu.PopupBaseMenuItem({reactive:false,can_focus:false});
-            cardItem.remove_all_children();
-            cardItem.set_style('padding: 6px 24px 6px 0;');
-            const card=new St.BoxLayout({vertical:true,x_expand:true,style_class:'pingoose-slot-create-card'});
-            const range=new St.BoxLayout({x_expand:true,style_class:'pingoose-slot-editor'});
-            card.add_child(range);
-            cardItem.add_child(card);
-            section.addMenuItem(cardItem);
-            for(const [key,label] of [['begin','From'],['end','Until']]){
-                if(key==='end')range.add_child(new St.Label({text:'–',style_class:'pingoose-slot-range-divider',y_align:Clutter.ActorAlign.CENTER}));
-                const item=new St.BoxLayout({style_class:'pingoose-slot-time-group',x_expand:true});
-                const parts={key};
-                for(const [part,delta,name] of [['date',86400000,'day'],['hour',3600000,'hour'],['minute',900000,'15 minutes']]){
-                    const column=new St.BoxLayout({vertical:true,style_class:part==='date' ? 'pingoose-slot-stepper pingoose-slot-date-stepper' : 'pingoose-slot-stepper',x_expand:true});
-                    const up=new St.Button({label:'▴',can_focus:true,accessible_name:`Increase ${label} ${name}`,style_class:'pingoose-slot-step-button'});
-                    const value=new St.Label({text:'',style_class:'pingoose-slot-step-value pingoose-profile-level',x_align:Clutter.ActorAlign.CENTER});
-                    const down=new St.Button({label:'▾',can_focus:true,accessible_name:`Decrease ${label} ${name}`,style_class:'pingoose-slot-step-button'});
-                    up.connect('clicked',()=>adjust(key,delta));
-                    down.connect('clicked',()=>adjust(key,-delta));
-                    column.add_child(up);column.add_child(value);column.add_child(down);
-                    item.add_child(column);parts[part]=value;
-                }
-                labels.push(parts);range.add_child(item);
-            }
-            sync();
-            const actions=new St.BoxLayout({x_expand:true});
-            const submit=new St.Button({label:'Create',can_focus:true,x_expand:true,x_align:Clutter.ActorAlign.END,style_class:'pingoose-clear-button'});
-            submit.connect('clicked',()=>{
-                try{
-                    const payload=schedule.manual(format(this._slotDraft.begin),format(this._slotDraft.end));
-                    const conflict=(this._slots || []).find(row=>Date.parse(row.start)<Date.parse(payload.end) && Date.parse(row.end)>Date.parse(payload.begin));
-                    if(conflict)throw new Error(`Could not create slot:\nOverlaps ${format(conflict.start)} – ${format(conflict.end)}.`);
-                    this._requestSlots('slots:create:'+JSON.stringify(payload));
-                }catch(error){this._slotsError=error.message;this._renderSlots();}
-            });
-            actions.add_child(submit);card.add_child(actions);
-        }
-        if (this._slots?.some(row=>!row.matched)) {
-            const closeRow=new PopupMenu.PopupBaseMenuItem({reactive:false,can_focus:false});
-            closeRow.remove_all_children();closeRow.set_style('padding: 6px 24px 6px 0;');
-            const all = new St.Button({label: 'Close All Slots', can_focus: true, x_expand: true, x_align: Clutter.ActorAlign.END, style_class: 'pingoose-clear-button'});
-            all.connect('clicked', () => this._requestSlots('slots:all'));
-            closeRow.add_child(all);section.addMenuItem(closeRow);
-        }
     }
 
+    _renderSlotCreator(section) {
+        const schedule = Me?.imports?.models?.slotSchedule || imports.misc.extensionUtils.getCurrentExtension().imports.models.slotSchedule;
+        const format = value => {
+            const d = new Date(value), pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+        const earliest = () => Math.ceil((Date.now() + 1800000) / 900000) * 900000;
+        if (!Number.isFinite(this._slotDraft?.begin) || this._slotDraft.begin < earliest()) {
+            const begin = earliest();
+            this._slotDraft = {begin, end: begin + 1800000};
+        }
+
+        const labels = [];
+        const sync = () => {
+            for (const {key, date, hour, minute} of labels) {
+                const value = new Date(this._slotDraft[key]);
+                date.text = `${String(value.getMonth() + 1).padStart(2, '0')}/${String(value.getDate()).padStart(2, '0')}`;
+                hour.text = String(value.getHours()).padStart(2, '0') + ' h';
+                minute.text = String(value.getMinutes()).padStart(2, '0') + ' m';
+            }
+        };
+
+        const adjust = (key, delta) => {
+            const draft = this._slotDraft;
+            const latest = Math.floor((Date.now() + 7 * 86400000) / 900000) * 900000;
+            if (key === 'begin') {
+                const duration = draft.end - draft.begin;
+                draft.begin = Math.max(earliest(), Math.min(draft.begin + delta, latest - duration));
+                draft.end = draft.begin + duration;
+            } else {
+                draft.end = Math.max(draft.begin + 900000, Math.min(draft.end + delta, latest));
+            }
+            sync();
+        };
+
+        const cardItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        cardItem.remove_all_children();
+        cardItem.set_style('padding: 6px 24px 6px 0;');
+        const card = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'pingoose-slot-create-card'});
+        const range = new St.BoxLayout({x_expand: true, style_class: 'pingoose-slot-editor'});
+        card.add_child(range);
+        cardItem.add_child(card);
+        section.addMenuItem(cardItem);
+
+        for (const [key, label] of [['begin', 'From'], ['end', 'Until']]) {
+            if (key === 'end') range.add_child(new St.Label({text: '–', style_class: 'pingoose-slot-range-divider', y_align: Clutter.ActorAlign.CENTER}));
+            const item = new St.BoxLayout({style_class: 'pingoose-slot-time-group', x_expand: true});
+            const parts = {key};
+            for (const [part, delta, name] of [['date', 86400000, 'day'], ['hour', 3600000, 'hour'], ['minute', 900000, '15 minutes']]) {
+                const column = new St.BoxLayout({
+                    vertical: true,
+                    style_class: part === 'date' ? 'pingoose-slot-stepper pingoose-slot-date-stepper' : 'pingoose-slot-stepper',
+                    x_expand: true
+                });
+                const up = new St.Button({label: '▴', can_focus: true, accessible_name: `Increase ${label} ${name}`, style_class: 'pingoose-slot-step-button'});
+                const value = new St.Label({text: '', style_class: 'pingoose-slot-step-value pingoose-profile-level', x_align: Clutter.ActorAlign.CENTER});
+                const down = new St.Button({label: '▾', can_focus: true, accessible_name: `Decrease ${label} ${name}`, style_class: 'pingoose-slot-step-button'});
+                up.connect('clicked', () => adjust(key, delta));
+                down.connect('clicked', () => adjust(key, -delta));
+                column.add_child(up); column.add_child(value); column.add_child(down);
+                item.add_child(column); parts[part] = value;
+            }
+            labels.push(parts); range.add_child(item);
+        }
+        sync();
+
+        const actions = new St.BoxLayout({x_expand: true});
+        const submit = new St.Button({label: 'Create', can_focus: true, x_expand: true, x_align: Clutter.ActorAlign.END, style_class: 'pingoose-clear-button'});
+        submit.connect('clicked', () => {
+            try {
+                const payload = schedule.manual(format(this._slotDraft.begin), format(this._slotDraft.end));
+                const conflict = (this._slots || []).find(row => Date.parse(row.start) < Date.parse(payload.end) && Date.parse(row.end) > Date.parse(payload.begin));
+                if (conflict) throw new Error(`Could not create slot:\nOverlaps ${format(conflict.start)} – ${format(conflict.end)}.`);
+                this._requestSlots('slots:create:' + JSON.stringify(payload));
+            } catch (error) {
+                this._slotsError = error.message;
+                this._renderSlots();
+            }
+        });
+        actions.add_child(submit);
+        card.add_child(actions);
+    }
+
+    _renderCloseAllRow(section) {
+        const closeRow = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        closeRow.remove_all_children();
+        closeRow.set_style('padding: 6px 24px 6px 0;');
+        const all = new St.Button({label: 'Close All Slots', can_focus: true, x_expand: true, x_align: Clutter.ActorAlign.END, style_class: 'pingoose-clear-button'});
+        all.connect('clicked', () => this._requestSlots('slots:all'));
+        closeRow.add_child(all);
+        section.addMenuItem(closeRow);
+    }
+
+    destroy() {
+        if (this._sessionSlotsTimer) GLib.source_remove(this._sessionSlotsTimer);
+        this._sessionSlotsTimer = 0;
+        this._sessionSlotsCallback = null;
+        if (this._visitIntraSignal && this._indicator?.visitIntra) {
+            this._indicator.visitIntra.disconnect(this._visitIntraSignal);
+            this._visitIntraSignal = 0;
+        }
+        this._unsubSlots?.();
+        this._unsubEvalCheck?.();
+        this._unsubStatus?.();
+        this._unsubSignOut?.();
+        this._slots = [];
+    }
 };
+
+function SlotManager(indicator, bridge, settings, options = {}) {
+    this.initManager(indicator, bridge, settings, options);
+}
+SlotManager.prototype = Object.create(Controller.prototype);
+SlotManager.prototype.constructor = SlotManager;

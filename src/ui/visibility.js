@@ -1,7 +1,20 @@
 const Me = imports.misc.extensionUtils.getCurrentExtension();
 
-
 var Controller = class Controller {
+    initManager(indicator, settings, options = {}) {
+        this._indicator = indicator;
+        this._settings = settings;
+        this._chatPanel = options.chatPanel || null;
+        this._servicePanel = options.servicePanel || null;
+        this._projectPanel = options.projectPanel || null;
+        this._layoutManager = options.layoutManager || null;
+        this._getEvaluationsCallback = options.getEvaluations || null;
+        this._getAgendaCallback = options.getAgenda || null;
+        this._getNotificationsCallback = options.getNotifications || null;
+        this._getUnreadIdsCallback = options.getUnreadIds || null;
+        this._getSlotsExpandedCallback = options.getSlotsExpanded || null;
+    }
+
     _applySectionOrder() {
         const indicator = this._indicator;
         const groups = {
@@ -14,7 +27,8 @@ var Controller = class Controller {
             chat: [this._chatPanel?._chatUi?.item],
             services: [this._servicePanel?.item],
         };
-        const order = Me.imports.models.appearance.read(this._settings);
+        const appearance = Me?.imports?.models?.appearance || imports.misc.extensionUtils.getCurrentExtension().imports.models.appearance;
+        const order = appearance.read(this._settings);
         const box = indicator.menu.box;
         // Keep the options toolbar first and the signed-out welcome view last.
         let index = indicator.toolbarItem ? 1 : 0;
@@ -39,16 +53,27 @@ var Controller = class Controller {
     _updatePanelLabel() {
         const indicator = this._indicator;
         if (!indicator) return;
-        const loading=!indicator.loginOnly && (!indicator.profileReady || this._refreshPending);
-        if(indicator.loadingIcon){
-            indicator.loadingIcon.visible=loading;
-            indicator.icon.visible=!loading;
-            if(loading){indicator.count.text='';return;}
+        const loading = !indicator.loginOnly && (!indicator.profileReady || this._refreshPending);
+        if (indicator.loadingIcon) {
+            indicator.loadingIcon.visible = loading;
+            indicator.icon.visible = !loading;
+            if (loading) {
+                indicator.count.text = '';
+                return;
+            }
         }
-        if (indicator.loginOnly) { indicator.count.text = 'Login Required'; return; }
-        const feedback = (this._evaluations || []).filter(row => Date.parse(row.begin) <= Date.now()).length +
-            (this._agenda || []).filter(row => row.feedback).length;
-        const unread = this._unreadIds?.size ?? (this._notifications || []).filter(row => row.unread).length;
+        if (indicator.loginOnly) {
+            indicator.count.text = 'Login Required';
+            return;
+        }
+        const evals = this._getEvaluationsCallback ? this._getEvaluationsCallback() : (this._evaluations || []);
+        const agenda = this._getAgendaCallback ? this._getAgendaCallback() : (this._agenda || []);
+        const notifications = this._getNotificationsCallback ? this._getNotificationsCallback() : (this._notifications || []);
+        const unreadIds = this._getUnreadIdsCallback ? this._getUnreadIdsCallback() : this._unreadIds;
+
+        const feedback = evals.filter(row => Date.parse(row.begin) <= Date.now()).length +
+            agenda.filter(row => row.feedback).length;
+        const unread = unreadIds?.size ?? notifications.filter(row => row.unread).length;
         const badge = count => count > 5 ? '5+' : String(count);
         if (feedback) indicator.count.text = `Feedback ${badge(feedback)}`;
         else if (unread) indicator.count.text = `New ${badge(unread)}`;
@@ -62,8 +87,14 @@ var Controller = class Controller {
         this._updatePanelLabel();
         const indicator = this._indicator;
         const enabled = key => this._settings ? this._settings.get_boolean(`show-${key}`) : true;
+
+        const slotsExpanded = this._getSlotsExpandedCallback ? this._getSlotsExpandedCallback() : !!this._slotsExpanded;
+        const evals = this._getEvaluationsCallback ? this._getEvaluationsCallback() : (this._evaluations || []);
+        const agenda = this._getAgendaCallback ? this._getAgendaCallback() : (this._agenda || []);
+        const notifications = this._getNotificationsCallback ? this._getNotificationsCallback() : (this._notifications || []);
+
         if (indicator.slotsButtonItem) indicator.slotsButtonItem.visible = !indicator.loginOnly && enabled('slots');
-        if (indicator.slotsItem) indicator.slotsItem.visible = !!this._slotsExpanded && !indicator.loginOnly && enabled('slots');
+        if (indicator.slotsItem) indicator.slotsItem.visible = slotsExpanded && !indicator.loginOnly && enabled('slots');
         if (indicator.profileSeparator) indicator.profileSeparator.visible = !indicator.loginOnly && enabled('profile');
         if (indicator.profileItem) indicator.profileItem.visible = !indicator.loginOnly && enabled('profile');
         if (indicator.overviewItem) {
@@ -71,22 +102,37 @@ var Controller = class Controller {
             indicator.studyColumn.visible = enabled('logtime');
             indicator.overviewItem.visible = !indicator.loginOnly && (enabled('projects') || enabled('logtime'));
         }
-        indicator.evaluationToggle?.updateCount(this._evaluations?.length || 0);
-        indicator.agendaToggle?.updateCount(this._agenda?.length || 0);
-        indicator.notificationToggle?.updateCount(this._notifications?.length || 0);
-        const evaluationsVisible = !indicator.loginOnly && !!this._evaluations?.length && enabled('evaluations');
-        const notificationsVisible = !indicator.loginOnly && !!this._notifications?.length && enabled('notifications');
-        const agendaVisible = !indicator.loginOnly && !!this._agenda?.length && enabled('agenda');
-        indicator.agendaItem.actor.visible = agendaVisible;
-        indicator.evaluationItem.actor.visible = evaluationsVisible;
-        indicator.notificationItem.actor.visible = notificationsVisible;
+        indicator.evaluationToggle?.updateCount(evals.length);
+        indicator.agendaToggle?.updateCount(agenda.length);
+        indicator.notificationToggle?.updateCount(notifications.length);
+
+        const evaluationsVisible = !indicator.loginOnly && !!evals.length && enabled('evaluations');
+        const notificationsVisible = !indicator.loginOnly && !!notifications.length && enabled('notifications');
+        const agendaVisible = !indicator.loginOnly && !!agenda.length && enabled('agenda');
+
+        if (indicator.agendaItem?.actor) indicator.agendaItem.actor.visible = agendaVisible;
+        else if (indicator.agendaItem) indicator.agendaItem.visible = agendaVisible;
+
+        if (indicator.evaluationItem?.actor) indicator.evaluationItem.actor.visible = evaluationsVisible;
+        else if (indicator.evaluationItem) indicator.evaluationItem.visible = evaluationsVisible;
+
+        if (indicator.notificationItem?.actor) indicator.notificationItem.actor.visible = notificationsVisible;
+        else if (indicator.notificationItem) indicator.notificationItem.visible = notificationsVisible;
+
         // Caps, not fixed heights: short lists occupy only their natural height.
         // Preserve more room for notifications when the slot list is expanded.
-        const slotsVisible = !!this._slotsExpanded && !indicator.loginOnly && enabled('slots');
+        const slotsVisible = slotsExpanded && !indicator.loginOnly && enabled('slots');
         const evaluationMax = notificationsVisible ? (slotsVisible ? 190 : 300) : (slotsVisible ? 280 : 360);
         indicator.evaluationScroll?.set_style(`min-height: 0; max-height: ${evaluationMax}px;`);
         this._applySectionOrder();
-        this._applyPanelLayout();
+        if (this._layoutManager) this._layoutManager.applyPanelLayout();
+        else if (typeof this._applyPanelLayout === 'function') this._applyPanelLayout();
     }
 
 };
+
+function VisibilityManager(indicator, settings, options = {}) {
+    this.initManager(indicator, settings, options);
+}
+VisibilityManager.prototype = Object.create(Controller.prototype);
+VisibilityManager.prototype.constructor = VisibilityManager;

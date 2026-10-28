@@ -1,41 +1,131 @@
-const {Clutter, GLib, Pango, St} = imports.gi;
+const {Clutter, Gio, GLib, Pango, St} = imports.gi;
 const Main = imports.ui.main;
 const MessageTray = imports.ui.messageTray;
 const PopupMenu = imports.ui.popupMenu;
 
 var Controller = class Controller {
+    initManager(indicator, bridge, settings, options = {}) {
+        this._indicator = indicator;
+        this._bridge = bridge;
+        this._settings = settings;
+        this._notificationSettings = options.notificationSettings || new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
+        this._syncOptionalSectionsCallback = options.onVisibilitySync || null;
+        this._updatePanelLabelCallback = options.onUpdatePanelLabel || null;
+        this._getEvaluationsCallback = options.getEvaluations || (() => []);
+
+        this._notifications = [];
+        this._unreadIds = new Set();
+        this._receivedNotificationIds = new Set();
+        this._flashActors = [];
+        this._flashTimer = 0;
+        this._lastFlash = -Infinity;
+        this._bannerSource = null;
+        this._cardArchiveFailed = false;
+
+        if (this._settings) {
+            this._settingsFlashSignal = this._settings.connect('changed::flash-count', () => this._clearFlash());
+        }
+
+        if (this._bridge) {
+            this._unsubNotification = this._bridge.on('notification', msg => this.onNotificationMessage(msg));
+            this._unsubSignOut = this._bridge.on('signed-out', () => this.clear());
+        }
+    }
+
+    get notifications() { return this._notifications; }
+    get unreadIds() { return this._unreadIds; }
+
+    clear() {
+        this._notifications = [];
+        this._unreadIds = new Set();
+        this._receivedNotificationIds = new Set();
+        this._renderCards();
+    }
+
+    onNotificationMessage(message) {
+        if (!message || message.type !== 'notification' || typeof message.body !== 'string' ||
+            !message.body.trim() || message.body.length > 1000 ||
+            typeof message.id !== 'string' || message.id.length > 1200)
+            return;
+        const existing = this._notifications.find(item => item.id === message.id);
+        if (message.update === true && existing) {
+            if (existing.body !== message.body) {
+                existing.body = message.body;
+                this._saveCardState();
+                this._renderCards();
+            }
+            return;
+        }
+        this._receivedNotificationIds ||= new Set();
+        if (this._receivedNotificationIds.has(message.id) || this._notifications.some(item => item.id === message.id))
+            return;
+        this._receivedNotificationIds.add(message.id);
+        if (this._receivedNotificationIds.size > 2000) {
+            this._receivedNotificationIds.delete(this._receivedNotificationIds.values().next().value);
+        }
+        this._unreadIds ||= new Set();
+        if (!this._indicator?.menu.isOpen) this._unreadIds.add(message.id);
+        this._notifications.unshift({
+            id: message.id,
+            body: message.body,
+            test: message.test === true,
+            category: message.category,
+            unread: !this._indicator?.menu.isOpen,
+            time: GLib.DateTime.new_now_local().format('%H:%M')
+        });
+        this._saveCardState();
+        this._renderCards();
+        if (message.category !== 'update' && (message.test || this._settings?.get_boolean(message.category === 'agenda' ? 'notify-agenda' : 'notify-evaluations'))) {
+            this._showBanner(message);
+            this._flashScreen();
+        }
+    }
+
+    saveCardState() { this._saveCardState(); }
+
     _saveCardState() {
-        if(this._resetting || this._cardArchiveFailed)return;
+        if (this._resetting || this._cardArchiveFailed) return;
         try {
-            const store=imports.misc.extensionUtils.getCurrentExtension().imports.services.cardStore;
-            // Desktop update checks also run before Intra sign-in. Preserve the
-            // archived account cards while adding these device-level notices.
-            if(this._indicator?.loginOnly){
-                const updates=this._notifications.filter(row=>row.category==='update');
-                if(!updates.length)return;
-                const old=store.read() || {notifications:[],received:[],tests:[]};
-                const ids=new Set(updates.map(row=>row.id));
-                store.write({...old,notifications:[...updates,...old.notifications.filter(row=>!ids.has(row.id))],
-                    received:[...new Set([...old.received,...ids])]});
+            const store = imports.misc.extensionUtils.getCurrentExtension().imports.services.cardStore;
+            if (this._indicator?.loginOnly) {
+                const updates = this._notifications.filter(row => row.category === 'update');
+                if (!updates.length) return;
+                const old = store.read() || {notifications: [], received: [], tests: []};
+                const ids = new Set(updates.map(row => row.id));
+                store.write({
+                    ...old,
+                    notifications: [...updates, ...old.notifications.filter(row => !ids.has(row.id))],
+                    received: [...new Set([...old.received, ...ids])]
+                });
                 return;
             }
+            const evals = this._getEvaluationsCallback ? this._getEvaluationsCallback() : (this._evaluations || []);
             store.write({
-                notifications:this._notifications,
-                received:[...(this._receivedNotificationIds || [])],
-                tests:(this._evaluations || []).filter(row=>row.devTest),
+                notifications: this._notifications,
+                received: [...(this._receivedNotificationIds || [])],
+                tests: evals.filter(row => row.devTest),
             });
-        } catch(error) { logError(error,'Unable to save Pingoose cards'); }
+        } catch (error) {
+            logError(error, 'Unable to save Pingoose cards');
+        }
     }
+
+    restoreCardState() { this._restoreCardState(); }
 
     _restoreCardState() {
         try {
-            const data=imports.misc.extensionUtils.getCurrentExtension().imports.services.cardStore.read();
-            if(!data)return;
-            this._notifications=data.notifications;
-            this._receivedNotificationIds=new Set(data.received);
-            this._unreadIds=new Set(data.notifications.filter(row=>row.unread).map(row=>row.id));
-            this._evaluations=[...(this._evaluations || []).filter(row=>!row.devTest),...data.tests];
-        } catch(error) { this._cardArchiveFailed=true;logError(error,'Unable to restore Pingoose cards'); }
+            const data = imports.misc.extensionUtils.getCurrentExtension().imports.services.cardStore.read();
+            if (!data) return;
+            this._notifications = data.notifications;
+            this._receivedNotificationIds = new Set(data.received);
+            this._unreadIds = new Set(data.notifications.filter(row => row.unread).map(row => row.id));
+            if (this._evaluations) {
+                this._evaluations = [...(this._evaluations || []).filter(row => !row.devTest), ...data.tests];
+            }
+        } catch (error) {
+            this._cardArchiveFailed = true;
+            logError(error, 'Unable to restore Pingoose cards');
+        }
     }
 
     _showBanner(message) {
@@ -49,7 +139,6 @@ var Controller = class Controller {
             message.id.startsWith('reminder:') ? 'Evaluation reminder' :
             message.id.startsWith('seat:') ? 'Evaluation location' :
             message.id.startsWith('rescheduled:') ? 'Evaluation rescheduled' : 'New Evaluation Matched';
-        // Keep the event details already supplied by the worker; omit repeated headings.
         const body = message.body
             .replace(/^You have been matched with someone\.\s*/i, '')
             .replace(/^New agenda event\s*·\s*/i, '')
@@ -65,15 +154,12 @@ var Controller = class Controller {
     _flashScreen(remaining = null) {
         if (!this._indicator || this._flashActors.length || this._flashTimer || Main.sessionMode.isLocked ||
             !St.Settings.get().enable_animations ||
-            !this._notificationSettings.get_boolean('show-banners'))
+            !(this._notificationSettings?.get_boolean('show-banners') ?? true))
             return;
-        const count = remaining === null ? this._settings.get_int('flash-count') : remaining;
-        if (count === 0)
-            return;
+        const count = remaining === null ? (this._settings?.get_int('flash-count') || 0) : remaining;
+        if (count === 0) return;
         const now = GLib.get_monotonic_time();
-        // Coalesce bursts: never turn a stream of notifications into a strobe.
-        if (now - this._lastFlash < 1_000_000)
-            return;
+        if (now - this._lastFlash < 1_000_000) return;
         this._lastFlash = now;
         this._flashActors = Main.layoutManager.monitors.map(monitor => new St.Widget({
             style_class: 'pingoose-flash', reactive: false, can_focus: false,
@@ -89,7 +175,6 @@ var Controller = class Controller {
                     onComplete: () => {
                         this._flashActors = this._flashActors.filter(actor => actor !== frame);
                         frame.destroy();
-                        // Wait for every monitor; only one repeat timer may exist.
                         if (!this._flashActors.length && count > 1) {
                             const delay = Math.max(1, Math.ceil(
                                 (1_000_000 - (GLib.get_monotonic_time() - this._lastFlash)) / 1000));
@@ -105,6 +190,8 @@ var Controller = class Controller {
         }
     }
 
+    clearFlash() { this._clearFlash(); }
+
     _clearFlash() {
         if (this._flashTimer) {
             GLib.source_remove(this._flashTimer);
@@ -118,44 +205,33 @@ var Controller = class Controller {
         }
     }
 
+    renderCards() { this._renderCards(); }
+
     _renderCards() {
-        this._syncOptionalSections();
+        if (this._syncOptionalSectionsCallback) this._syncOptionalSectionsCallback();
+        else if (typeof this._syncOptionalSections === 'function') this._syncOptionalSections();
+
         const indicator = this._indicator;
+        if (!indicator) return;
+
         indicator.cards.removeAll();
         indicator.count.text = indicator.loginOnly ? 'Login Required' :
             (indicator.profileReady ? '42' : '◌');
-        this._updatePanelLabel();
+
+        if (this._updatePanelLabelCallback) this._updatePanelLabelCallback();
+        else if (typeof this._updatePanelLabel === 'function') this._updatePanelLabel();
+
         if (!this._notifications.length) return;
         for (const notification of this._notifications) {
-            const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-            item.remove_all_children();
-            item.add_style_class_name('pingoose-card-row');
-            const card = new St.BoxLayout({vertical: true, reactive: true, x_expand: false, x_align: Clutter.ActorAlign.CENTER, style_class: 'pingoose-card'});
-            const dismiss = new St.Button({label: '×', accessible_name: 'Dismiss notification',
-                can_focus: true, style_class: 'pingoose-dismiss', y_align: Clutter.ActorAlign.CENTER});
-            dismiss.connect('clicked', () => {
-                this._unreadIds?.delete(notification.id);
-                this._notifications = this._notifications.filter(entry => entry.id !== notification.id);
-                this._saveCardState?.();
-                this._renderCards();
-            });
-            item.add_child(dismiss);
-            card.add_child(new St.Label({text: notification.test ? 'Test Notification' : notification.category === 'update' ? 'A new update was installed' : notification.category === 'agenda' ? '42 · New Agenda Event' : '42 · New Evaluation',
-                style_class: 'pingoose-card-title'}));
-            const body = new St.Label({text: notification.body, style_class: 'pingoose-card-body'});
-            body.clutter_text.line_wrap = true;
-            body.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
-            body.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
-            card.add_child(body);
-            card.add_child(new St.Label({text: `Received at ${notification.time}`, style_class: 'pingoose-card-time'}));
-            item.add_child(card);
-            indicator.cards.addMenuItem(item);
+            this._renderNotificationCard(notification, indicator);
         }
         const footer = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
         footer.remove_all_children();
         footer.set_style('padding: 6px 16px 6px 0; spacing: 0;');
-        const clear = new St.Button({label: 'Clear All', can_focus: true,
-            x_expand: true, x_align: Clutter.ActorAlign.END, style_class: 'pingoose-clear-button'});
+        const clear = new St.Button({
+            label: 'Clear All', can_focus: true,
+            x_expand: true, x_align: Clutter.ActorAlign.END, style_class: 'pingoose-clear-button'
+        });
         clear.connect('clicked', () => {
             this._notifications = [];
             this._unreadIds = new Set();
@@ -166,4 +242,56 @@ var Controller = class Controller {
         indicator.cards.addMenuItem(footer);
     }
 
+    _renderNotificationCard(notification, indicator) {
+        const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        item.remove_all_children();
+        item.add_style_class_name('pingoose-card-row');
+        const card = new St.BoxLayout({
+            vertical: true, reactive: true, x_expand: false, x_align: Clutter.ActorAlign.CENTER,
+            style_class: 'pingoose-card'
+        });
+        const dismiss = new St.Button({
+            label: '×', accessible_name: 'Dismiss notification',
+            can_focus: true, style_class: 'pingoose-dismiss', y_align: Clutter.ActorAlign.CENTER
+        });
+        dismiss.connect('clicked', () => {
+            this._unreadIds?.delete(notification.id);
+            this._notifications = this._notifications.filter(entry => entry.id !== notification.id);
+            this._saveCardState?.();
+            this._renderCards();
+        });
+        item.add_child(dismiss);
+        card.add_child(new St.Label({
+            text: notification.test ? 'Test Notification' : notification.category === 'update' ? 'A new update was installed' : notification.category === 'agenda' ? '42 · New Agenda Event' : '42 · New Evaluation',
+            style_class: 'pingoose-card-title'
+        }));
+        const body = new St.Label({text: notification.body, style_class: 'pingoose-card-body'});
+        body.clutter_text.line_wrap = true;
+        body.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+        body.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+        card.add_child(body);
+        card.add_child(new St.Label({text: `Received at ${notification.time}`, style_class: 'pingoose-card-time'}));
+        item.add_child(card);
+        indicator.cards.addMenuItem(item);
+    }
+
+    destroy() {
+        if (this._settingsFlashSignal && this._settings) {
+            this._settings.disconnect(this._settingsFlashSignal);
+            this._settingsFlashSignal = 0;
+        }
+        this._clearFlash();
+        this._bannerSource?.destroy();
+        this._bannerSource = null;
+        this._unsubNotification?.();
+        this._unsubSignOut?.();
+        this._notifications = [];
+        this._unreadIds?.clear();
+    }
 };
+
+function NotificationManager(indicator, bridge, settings, options = {}) {
+    this.initManager(indicator, bridge, settings, options);
+}
+NotificationManager.prototype = Object.create(Controller.prototype);
+NotificationManager.prototype.constructor = NotificationManager;
