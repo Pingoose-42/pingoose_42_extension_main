@@ -386,3 +386,6 @@
 .pingoose-maintenance-controls { spacing: 8px; }
 
 .pingoose-maintenance-description { margin-top: 6px; }
+
+.pingoose-dark .pingoose-profile-name { color: #ffffff; }
+.pingoose-light .pingoose-profile-name { color: #000000; }

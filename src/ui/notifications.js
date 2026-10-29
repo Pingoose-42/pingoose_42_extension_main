@@ -67,7 +67,7 @@ var Controller = class Controller {
         if (!this._indicator?.menu.isOpen) this._unreadIds.add(message.id);
         this._notifications.unshift({
             id: message.id,
-          title: typeof message.title == 'string' ? message.title : null,
+            title: typeof message.title === 'string' ? message.title : null,
             body: message.body,
             test: message.test === true,
             category: message.category,
@@ -263,15 +263,12 @@ var Controller = class Controller {
         });
         item.add_child(dismiss);
         card.add_child(new St.Label({
-            text: notification.test
-                ? 'Test Notification'
-                : notification.category === 'update'
-                ? 'A new update was installed'
-                : notification.category === 'agenda'
-                ? '42 · New Agenda Event'
-                : notification.title
-                ? `42 · ${notification.title}`
-                : '42 · New Evaluation',
+            text: notification.id?.startsWith('start:')
+                ? `42 · ${notification.id.startsWith('start:agenda:') ? 'Agenda starting soon' : 'Evaluation starting soon'}`
+                : notification.test ? 'Test Notification'
+                : notification.category === 'update' ? 'A new update was installed'
+                : notification.title ? `42 · ${notification.title}`
+                : notification.category === 'agenda' ? '42 · New Agenda Event' : '42 · New Evaluation',
             style_class: 'pingoose-card-title'
         }));
         const body = new St.Label({text: notification.body, style_class: 'pingoose-card-body'});

@@ -166,7 +166,8 @@ var Controller = class Controller {
         const options = new PopupMenu.PopupMenu(remove, 1.0, St.Side.TOP);
         imports.ui.main.uiGroup.add_child(options.actor);
         options.actor.hide();
-        this._optionsManager?.addMenu(options);
+        this._optionsManager ||= new PopupMenu.PopupMenuManager(this._indicator);
+        this._optionsManager.addMenu(options);
         options.addAction('Hide Agenda', () => {
             options.close();
             this._hideAgenda(row);

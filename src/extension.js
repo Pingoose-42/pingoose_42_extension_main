@@ -345,6 +345,7 @@ class Pingoose {
         this._notifications?.unshift({
             id: message.id, body: message.body,
             test: message.test === true, category: message.category,
+            title: typeof message.title === 'string' ? message.title : null,
             unread: !this._indicator?.menu?.isOpen, time: GLib.DateTime.new_now_local().format('%H:%M')
         });
         this._saveCardState?.();
