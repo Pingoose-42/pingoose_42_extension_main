@@ -2,3 +2,6 @@
 *.[pP][dD][fF]
 /presentation/
 /.local-backups/
+
+# Optional development tools (not used by the installed extension)
+/node_modules/

@@ -1,9 +1,10 @@
-const {Gio, GLib} = imports.gi;
+const { Gio, GLib } = imports.gi;
 const ByteArray = imports.byteArray;
 const Me = imports.misc.extensionUtils.getCurrentExtension();
 
 var WorkerBridge = class WorkerBridge {
-    constructor() {
+    constructor({ acceptMessage = () => true } = {}) {
+        this._acceptMessage = acceptMessage;
         this._listeners = new Map();
         this._commands = [];
         this._writing = false;
@@ -70,6 +71,9 @@ var WorkerBridge = class WorkerBridge {
         this._cancel = new Gio.Cancellable();
         this._commands = [];
         this._writing = false;
+        this._exited = false;
+        this._drained = false;
+        this._workerStatus = null;
 
         try {
             this._process = Gio.Subprocess.new(
@@ -77,7 +81,7 @@ var WorkerBridge = class WorkerBridge {
                 Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDOUT_PIPE
             );
             const proc = this._process;
-            const input = new Gio.DataInputStream({base_stream: proc.get_stdout_pipe()});
+            const input = new Gio.DataInputStream({ base_stream: proc.get_stdout_pipe() });
             this._read(proc, input, this._cancel);
             proc.wait_async(null, (child, result) => {
                 try {
@@ -86,8 +90,8 @@ var WorkerBridge = class WorkerBridge {
                     /* Already stopping. */
                 }
                 if (this._process === child) {
-                    this._process = null;
-                    this.emit('process-exited', child);
+                    this._exited = true;
+                    this._finishExit(child);
                 }
             });
             this.emit('started');
@@ -103,7 +107,9 @@ var WorkerBridge = class WorkerBridge {
                 const [line] = stream.read_line_finish_utf8(result);
                 if (this._process !== proc || cancel.is_cancelled()) return;
                 if (line === null) {
+                    this._drained = true;
                     this.emit('eof');
+                    this._finishExit(proc);
                     return;
                 }
                 if (line.length <= 4194304) {
@@ -111,27 +117,41 @@ var WorkerBridge = class WorkerBridge {
                         const message = JSON.parse(line);
                         this._dispatch(message);
                     } catch (_) {
-                        this.emit('error', 'Unable to display the notification. Restart the extension.');
+                        this.emit(
+                            'error',
+                            'Unable to display the notification. Restart the extension.'
+                        );
                     }
                 }
                 this._read(proc, stream, cancel);
             } catch (_) {
                 if (!cancel.is_cancelled()) {
                     this.emit('error', 'Unable to read from the Intra helper.');
+                    this._drained = true;
+                    this._finishExit(proc);
                 }
             }
         });
     }
 
+    _finishExit(process) {
+        if (this._process !== process || !this._exited || !this._drained) return;
+        this._process = null;
+        this._cancel?.cancel();
+        this._cancel = null;
+        this._commands = [];
+        this._writing = false;
+        this.emit('process-exited', process);
+    }
+
     _dispatch(message) {
-        if (!message || typeof message !== 'object') return;
+        if (!message || typeof message !== 'object' || !this._acceptMessage(message)) return;
         if (message.type === 'status' && typeof message.state === 'string') {
             this._workerStatus = message.state;
         }
         if (message.type) {
             this.emit(message.type, message);
         }
-        this.emit('message', message);
     }
 
     send(command) {
@@ -139,14 +159,11 @@ var WorkerBridge = class WorkerBridge {
             this.emit('error', 'Intra monitoring is stopped. Restart the extension.');
             return;
         }
-        if (
-            command === 'show' ||
-            command === 'login' ||
-            /^(project|service):open:/.test(command)
-        ) {
-            const time = typeof global !== 'undefined' && global.get_current_time
-                ? global.get_current_time() >>> 0
-                : 0;
+        if (command === 'show' || command === 'login' || /^(project|service):open:/.test(command)) {
+            const time =
+                typeof global !== 'undefined' && global.get_current_time
+                    ? global.get_current_time() >>> 0
+                    : 0;
             command = `present:${time}:${command}`;
         }
         this._commands.push(command);
@@ -159,19 +176,24 @@ var WorkerBridge = class WorkerBridge {
         const cancel = this._cancel;
         const bytes = ByteArray.fromString(`${this._commands.shift()}\n`);
         this._writing = true;
-        proc.get_stdin_pipe().write_all_async(bytes, GLib.PRIORITY_DEFAULT, cancel, (stream, result) => {
-            try {
-                stream.write_all_finish(result);
-            } catch (_) {
+        proc.get_stdin_pipe().write_all_async(
+            bytes,
+            GLib.PRIORITY_DEFAULT,
+            cancel,
+            (stream, result) => {
+                try {
+                    stream.write_all_finish(result);
+                } catch (_) {
+                    if (this._process === proc) {
+                        this.emit('error', 'Unable to send a command to the Intra helper.');
+                    }
+                }
                 if (this._process === proc) {
-                    this.emit('error', 'Unable to send a command to the Intra helper.');
+                    this._writing = false;
+                    this._writeNext();
                 }
             }
-            if (this._process === proc) {
-                this._writing = false;
-                this._writeNext();
-            }
-        });
+        );
     }
 
     stop() {

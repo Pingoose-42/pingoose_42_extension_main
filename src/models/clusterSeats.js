@@ -11,5 +11,5 @@ function snapshot(rows, campus) {
         const seat = host.split('.')[0];
         if (/^[a-z0-9_-]{1,64}$/.test(login) && /^c\d+r\d+s\d+$/.test(seat)) seats[login] = seat;
     }
-    return {campus, seats};
+    return { campus, seats };
 }

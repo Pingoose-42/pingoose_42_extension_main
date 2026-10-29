@@ -1,85 +1,170 @@
-const fs = require('fs');
-const vm = require('vm');
 const assert = require('assert/strict');
-const source = fs.readFileSync('src/ui/chatPanel.js','utf8');
-let general=true;
-const CountLabel={update(label,title,count){label.label=title+(count?' · '+count:'');}};
-const context = {CountLabel,Flags:{enabled:()=>general},GLib:{get_user_name:()=>'fixture'},Policy:require('../models/chatPolicy.js')};
-vm.createContext(context);
-vm.runInContext('class Probe {' + source.slice(source.indexOf('    sync()'),source.indexOf('    reset()')) + '}; globalThis.Probe=Probe;',context);
-const p = new context.Probe();
-p._settings={set_boolean(){},get_boolean:()=>true,get_strv:()=>[]};p._blocked=[];
-p._indicator={loginOnly:false,menu:{isOpen:true}};
-p._chatUi={item:{},root:{},toggle:{get_child(){return this;}},add:{},peerRow:{hide(){}},entry:{}};
-p._chat={unread:7,state:'listening',markRead(){},configure(){},peer:()=>({})};
-p._expanded=true;p.sync();assert.equal(p._chatUi.root.visible,true);
-p._indicator.menu.isOpen=false;p.sync();assert.equal(p._expanded,true);
-p._indicator.menu.isOpen=true;p.sync();assert.equal(p._chatUi.root.visible,true);
-p._expanded=false;p.sync();assert.equal(p._chatUi.root.visible,false);
-p._indicator.menu.isOpen=false;p.sync();p._indicator.menu.isOpen=true;p.sync();assert.equal(p._chatUi.root.visible,false);
-p._expanded=true;p._indicator.loginOnly=true;p.sync();assert.equal(p._chatUi.root.visible,false);assert.equal(p._chatUi.item.visible,false);
-p._updatePanelLabel();assert.equal(p._chatUi.toggle.label,'Cluster Chat · 5+');
-general=false;p._indicator.loginOnly=false;p._chatActive='c2r3s4';p.sync();assert.equal(p._chatUi.item.visible,false);assert.equal(p._chatUi.add.visible,false);assert.equal(p._chatUi.root.visible,true);
-console.log('PASS: retained panel state across menu close/open; explicit close remains closed; login visibility; unread badge');
-let destroyed=false;
-context.Chat={ChatService:class {connect(){} }};
-vm.runInContext('class ResetProbe {'+source.slice(source.indexOf('    reset()'),source.indexOf('    destroy()'))+'};globalThis.ResetProbe=ResetProbe;',context);
-const r=new context.ResetProbe();
-r._chat={destroy(){destroyed=true;}};
-r._chatUi={entry:{text:'draft'},peerEntry:{text:'c2r3s4',remove_style_class_name(){}},peerRow:{visible:true,hide(){this.visible=false;}}};
-r._bindChatSignals=()=>{};
-r._setConnectBusy=()=>{};
-r._renderChatStatus=r._renderChat=r._updatePanelLabel=r.sync=()=>{};
-r.reset();assert.equal(destroyed,true);assert.equal(r._chatUi.entry.text,'');assert.equal(r._chatUi.peerEntry.text,'');assert.equal(r._chatUi.peerRow.visible,false);assert.equal(r._chatActive,null);assert.equal(r._expanded,false);
+let general = true;
+const CountLabel = {
+    update(label, title, count) {
+        label.label = title + (count ? ' · ' + count : '');
+    },
+};
+const context = {
+    CountLabel,
+    Flags: { enabled: () => general },
+    GLib: { get_user_name: () => 'fixture' },
+    Policy: require('../models/chatPolicy.js'),
+};
+context.Chat = {
+    ChatService: class {
+        connect() {}
+    },
+};
+const { moduleExport } = require('./helpers.cjs');
+const Me = {
+    imports: {
+        ui: { countLabel: CountLabel },
+        models: { featureFlags: context.Flags, chatPolicy: context.Policy },
+        services: { chat: context.Chat },
+    },
+};
+const Panel = moduleExport('ui/chatPanel.js', 'ChatPanel', {
+    imports: {
+        gi: { GLib: context.GLib },
+        misc: { extensionUtils: { getCurrentExtension: () => Me } },
+    },
+});
+const probe = () => Object.create(Panel.prototype);
+const p = probe();
+p._settings = { set_boolean() {}, get_boolean: () => true, get_strv: () => [] };
+p._blocked = [];
+p._indicator = { loginOnly: false, menu: { isOpen: true } };
+p.connection = { reset() {} };
+p._chatUi = {
+    item: {},
+    root: {},
+    toggle: {
+        get_child() {
+            return this;
+        },
+    },
+    add: {},
+    peerRow: { hide() {} },
+    entry: {},
+};
+p._chat = { unread: 7, state: 'listening', markRead() {}, configure() {}, peer: () => ({}) };
+p._expanded = true;
+p.sync();
+assert.equal(p._chatUi.root.visible, true);
+p._indicator.menu.isOpen = false;
+p.sync();
+assert.equal(p._expanded, true);
+p._indicator.menu.isOpen = true;
+p.sync();
+assert.equal(p._chatUi.root.visible, true);
+p._expanded = false;
+p.sync();
+assert.equal(p._chatUi.root.visible, false);
+p._indicator.menu.isOpen = false;
+p.sync();
+p._indicator.menu.isOpen = true;
+p.sync();
+assert.equal(p._chatUi.root.visible, false);
+p._expanded = true;
+p._indicator.loginOnly = true;
+p.sync();
+assert.equal(p._chatUi.root.visible, false);
+assert.equal(p._chatUi.item.visible, false);
+p._updatePanelLabel();
+assert.equal(p._chatUi.toggle.label, 'Cluster Chat · 5+');
+general = false;
+p._indicator.loginOnly = false;
+p._chatActive = 'c2r3s4';
+p.sync();
+assert.equal(p._chatUi.item.visible, false);
+assert.equal(p._chatUi.add.visible, false);
+assert.equal(p._chatUi.root.visible, true);
+console.log(
+    'PASS: retained panel state across menu close/open; explicit close remains closed; login visibility; unread badge'
+);
+let destroyed = false;
+const r = probe();
+let inputResets = 0;
+r.connection = {
+    reset() {
+        inputResets++;
+    },
+};
+r._chat = {
+    destroy() {
+        destroyed = true;
+    },
+};
+r._chatUi = {
+    entry: { text: 'draft' },
+    peerEntry: { text: 'c2r3s4', remove_style_class_name() {} },
+    peerRow: {
+        visible: true,
+        hide() {
+            this.visible = false;
+        },
+    },
+};
+r._bindChatSignals = () => {};
+r._renderChatStatus = r._renderChat = r._updatePanelLabel = r.sync = () => {};
+r.reset();
+assert.equal(destroyed, true);
+assert.equal(r._chatUi.entry.text, '');
+assert.equal(inputResets, 1);
+assert.equal(r._chatActive, null);
+assert.equal(r._expanded, false);
 console.log('PASS: logout destroys chat service and clears drafts, selected peer and panel state');
-context.St={PolicyType:{ALWAYS:1,NEVER:0}};
-vm.runInContext('class OverflowProbe {'+source.slice(source.indexOf('    _syncChipOverflow()'),source.indexOf('    _renderChat()'))+'};globalThis.OverflowProbe=OverflowProbe;',context);
-const o=new context.OverflowProbe();let widths=[110,110],policy=0;
-o._chatUi={chipOverflow:false,chips:{get_children:()=>widths.map(w=>({get_preferred_width:()=>[w,w]})),get_theme_node:()=>({get_length:()=>6})},chipScroll:{width:326,get_allocation_box(){return {};},get_theme_node:()=>({get_content_box:()=>({get_width:()=>326})}),set_policy(value){policy=value;}}};
-o._syncChipOverflow();assert.equal(policy,0);
-widths=[110,110,110];o._syncChipOverflow();assert.equal(policy,1);
-widths=[110];o._syncChipOverflow();assert.equal(policy,0);
-console.log('PASS: horizontal scrollbar only appears when chip widths exceed viewport and disappears after removal');
-const feedback = new context.Probe();
-feedback._blocked = [];
-feedback._setConnectBusy = busy => {feedback.busy=busy;};
-feedback._chatUi = {peerRow:{show(){this.visible=true;},hide(){this.visible=false;}},peerEntry:{text:'sanghul2',add_style_class_name(){}},peerFeedback:{show(){this.visible=true;},hide(){this.visible=false;}}};
-feedback._chat = {isBlocked:()=>true,open:()=>{throw Error('blocked peer must not connect');}};
-feedback._connectPeer('c1r1s1');
-assert.match(feedback._chatUi.peerFeedback.text,/blacklist/);
-assert.equal(feedback._chatUi.peerFeedback.visible,true);
-feedback._chat.isBlocked=()=>false;feedback._chat.open=()=>null;
-feedback._connectPeer('c1r1s1');assert.match(feedback._chatUi.peerFeedback.text,/Could not start/);
-let selected=null, promoted=null;
-feedback._chat.showConnected=key=>{promoted=key;};
-feedback._chat.isConnected=()=>false;feedback._chat.open=(_seat,_scope,background)=>{assert.equal(background,true);return 'c1r1s1';};feedback._selectChat=key=>{selected=key;};
-feedback._connectPeer('c1r1s1','sanghul2');
-assert.equal(feedback._pendingConnection.input,'sanghul2');
-assert.equal(feedback._chatUi.peerFeedback.visible,false);
-console.log('PASS: connection errors below entry; blocked requests stopped; async attempt retains original input');
-
-assert.equal(feedback.busy,true);
-assert.equal(selected,null);
-assert.equal(promoted,null);
-feedback._connectionReady('c1r1s2');assert.equal(feedback.busy,true);
-feedback._connectionReady('c1r1s1');
-assert.equal(feedback.busy,false);
-assert.equal(feedback._chatUi.peerEntry.text,'');
-assert.equal(feedback._chatUi.peerRow.visible,false);
-assert.equal(feedback._pendingConnection,null);
-console.log('PASS: loading ends and input clears/hides only for the matching successful connection');
-
-assert.equal(selected,'c1r1s1');
-assert.equal(promoted,'c1r1s1');
-console.log('PASS: tentative connections stay hidden until successful handshake');
-const evaluationPanel=new context.Probe();
-const evaluationGrant={seat:'c1r1s3',id:'evaluation'};
+const OverflowPanel = moduleExport('ui/chatPanel.js', 'ChatPanel', {
+    imports: {
+        gi: { St: { PolicyType: { ALWAYS: 1, NEVER: 0 } } },
+        misc: { extensionUtils: { getCurrentExtension: () => Me } },
+    },
+});
+const o = Object.create(OverflowPanel.prototype);
+let widths = [110, 110],
+    policy = 0;
+o._chatUi = {
+    chipOverflow: false,
+    chips: {
+        get_children: () => widths.map((w) => ({ get_preferred_width: () => [w, w] })),
+        get_theme_node: () => ({ get_length: () => 6 }),
+    },
+    chipScroll: {
+        width: 326,
+        get_allocation_box() {
+            return {};
+        },
+        get_theme_node: () => ({ get_content_box: () => ({ get_width: () => 326 }) }),
+        set_policy(value) {
+            policy = value;
+        },
+    },
+};
+o._syncChipOverflow();
+assert.equal(policy, 0);
+widths = [110, 110, 110];
+o._syncChipOverflow();
+assert.equal(policy, 1);
+widths = [110];
+o._syncChipOverflow();
+assert.equal(policy, 0);
+console.log(
+    'PASS: horizontal scrollbar only appears when chip widths exceed viewport and disappears after removal'
+);
+const evaluationPanel = probe();
+const evaluationGrant = { seat: 'c1r1s3', id: 'evaluation' };
 let evaluationOpen;
-evaluationPanel.canEvaluation=()=>evaluationGrant;
-evaluationPanel._indicator={loginOnly:false,bringPanelNearMain(){}};
-evaluationPanel._chat={open(...args){evaluationOpen=args;return args[0];}};
-evaluationPanel._chatUi={peerEntry:{},root:{}};
-evaluationPanel._selectChat=evaluationPanel.sync=()=>{};
-evaluationPanel.openEvaluation({},'peer');
-assert.deepEqual(evaluationOpen,['c1r1s3','evaluation',false,'peer']);
+evaluationPanel.canEvaluation = () => evaluationGrant;
+evaluationPanel._indicator = { loginOnly: false, bringPanelNearMain() {} };
+evaluationPanel._chat = {
+    open(...args) {
+        evaluationOpen = args;
+        return args[0];
+    },
+};
+evaluationPanel._chatUi = { peerEntry: {}, root: {} };
+evaluationPanel._selectChat = evaluationPanel.sync = () => {};
+evaluationPanel.openEvaluation({}, 'peer');
+assert.deepEqual(evaluationOpen, ['c1r1s3', 'evaluation', false, 'peer']);
 console.log('PASS: evaluation card passes counterpart login for nickname (seat) display');

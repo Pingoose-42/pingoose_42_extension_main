@@ -11,7 +11,10 @@
     <key name="notify-agenda-immediate" type="b"><default>true</default><summary>Immediate notifications</summary></key>
     <key name="agenda-reminder-minutes" type="i"><range min="0" max="10080"/><default>30</default><summary>Minutes before start</summary></key>
     <key name="sync-agenda-calendar" type="b"><default>false</default><summary>Sync agenda to the local desktop calendar</summary></key>
+    <key name="auto-delete-past-agenda-calendar" type="b"><default>false</default><summary>Automatically delete ended agenda calendar events during sync</summary></key>
     <key name="agenda-calendar-status" type="s"><default>''</default><summary>Calendar sync status</summary></key>
+    <key name="logtime-seconds-mode" type="s"><choices><choice value="truncate"/><choice value="sum"/></choices><default>'truncate'</default><summary>Truncate daily seconds or include them in the monthly total</summary></key>
+    <key name="logtime-daily-limit" type="s"><choices><choice value="12h"/><choice value="all"/></choices><default>'12h'</default><summary>Daily logtime limit</summary></key>
     <key name="panel-shortcut" type="as"><default>[]</default><summary>Global shortcut to open Pingoose</summary></key>
     <key name="dismissed-agenda-ids" type="as"><default>[]</default><summary>Agenda cards acknowledged by the user</summary></key>
     <key name="agenda-reset-request" type="s"><default>''</default><summary>Restore dismissed agenda cards</summary></key>

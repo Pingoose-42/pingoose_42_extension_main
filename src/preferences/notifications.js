@@ -1,28 +1,49 @@
-const {Gtk, Gio, GLib} = imports.gi;
+const { Gtk, Gio, GLib } = imports.gi;
 const Common = imports.misc.extensionUtils.getCurrentExtension().imports.preferences.common;
 function build(settings) {
-    const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 18});
+    const box = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 18 });
     let firstSection = true;
-    const heading = title => {
+    const heading = (title) => {
         Common.sectionHeading(box, title, !firstSection);
         firstSection = false;
     };
     const toggleRow = (key, title) => {
-        const toggle = new Gtk.Switch({valign: Gtk.Align.CENTER});
+        const toggle = new Gtk.Switch({ valign: Gtk.Align.CENTER });
         settings.bind(key, toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
         Common.row(box, title, toggle);
     };
-    for (const [category, title, max] of [['evaluation', 'Evaluation', 15], ['agenda', 'Agenda', 10080]]) {
+    for (const [category, title, max] of [
+        ['evaluation', 'Evaluation', 15],
+        ['agenda', 'Agenda', 10080],
+    ]) {
         heading(title === 'Evaluation' ? 'Evaluations' : 'Agenda');
-        toggleRow(category === 'evaluation' ? 'notify-evaluations' : 'notify-agenda', 'System notifications');
-        const reminder = new Gtk.Switch({valign: Gtk.Align.CENTER});
-        settings.bind(`notify-${category}-reminder-enabled`, reminder, 'active', Gio.SettingsBindFlags.DEFAULT);
+        toggleRow(
+            category === 'evaluation' ? 'notify-evaluations' : 'notify-agenda',
+            'System notifications'
+        );
+        const reminder = new Gtk.Switch({ valign: Gtk.Align.CENTER });
+        settings.bind(
+            `notify-${category}-reminder-enabled`,
+            reminder,
+            'active',
+            Gio.SettingsBindFlags.DEFAULT
+        );
         Common.row(box, `${title} start reminder`, reminder);
         const minutes = Gtk.SpinButton.new_with_range(0, max, 1);
-        settings.bind(`${category}-reminder-minutes`, minutes, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind(
+            `${category}-reminder-minutes`,
+            minutes,
+            'value',
+            Gio.SettingsBindFlags.DEFAULT
+        );
         Common.row(box, `${title}: before start (0–${max} min; 0 = at start)`, minutes);
-        const immediate = new Gtk.Switch({valign: Gtk.Align.CENTER});
-        settings.bind(`notify-${category}-immediate`, immediate, 'active', Gio.SettingsBindFlags.DEFAULT);
+        const immediate = new Gtk.Switch({ valign: Gtk.Align.CENTER });
+        settings.bind(
+            `notify-${category}-immediate`,
+            immediate,
+            'active',
+            Gio.SettingsBindFlags.DEFAULT
+        );
         Common.row(box, `${title}: notify immediately when added`, immediate);
     }
     heading('Cluster Chat');
@@ -47,7 +68,7 @@ function build(settings) {
     const thickness = Gtk.SpinButton.new_with_range(1, 40, 1);
     settings.bind('flash-thickness', thickness, 'value', Gio.SettingsBindFlags.DEFAULT);
     Common.row(box, 'Flash border thickness (1–40 px)', thickness);
-    const preview = new Gtk.Button({label: 'Preview'});
+    const preview = new Gtk.Button({ label: 'Preview' });
     box.append(preview);
     preview.connect('clicked', () => {
         settings.set_string('flash-preview-request', GLib.uuid_string_random());

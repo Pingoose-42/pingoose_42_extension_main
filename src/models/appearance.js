@@ -10,7 +10,9 @@ var sections = [
     ['services', '42 Services', ['services']],
 ];
 function normalize(values) {
-    const defaults = sections.map(section => section[0]);
-    return [...new Set([...values.filter(value => defaults.includes(value)), ...defaults])];
+    const defaults = sections.map((section) => section[0]);
+    return [...new Set([...values.filter((value) => defaults.includes(value)), ...defaults])];
 }
-function read(settings) { return normalize(settings.get_strv('section-order')); }
+function read(settings) {
+    return normalize(settings.get_strv('section-order'));
+}

@@ -1,24 +1,37 @@
 const assert = require('node:assert/strict');
-const {calendar} = require('../models/agendaCalendar');
-const row = {id:'42',name:'행사, 제목; 😀'.repeat(20),kind:'event',begin:'2026-11-05T07:00:00+09:00',end:'2026-11-05T08:00:00+09:00'};
-const text = calendar([row, row, {...row,id:'43',devTest:true}], 'account');
-assert.equal((text.match(/BEGIN:VEVENT/g)||[]).length,1);
+const { calendar } = require('../models/agendaCalendar');
+const row = {
+    id: '42',
+    name: '행사, 제목; 😀'.repeat(20),
+    kind: 'event',
+    begin: '2026-11-05T07:00:00+09:00',
+    end: '2026-11-05T08:00:00+09:00',
+};
+const text = calendar([row, row, { ...row, id: '43', devTest: true }], 'account');
+assert.equal((text.match(/BEGIN:VEVENT/g) || []).length, 1);
 assert(text.includes('DTSTART:20261104T220000Z'));
 assert(text.includes('DTEND:20261104T230000Z'));
 assert(text.includes('UID:account-event-42@pingoose'));
-for (const line of text.split('\r\n')) assert(Buffer.byteLength(line)<=75);
-assert(text.replace(/\r\n /g,'').includes('SUMMARY:행사\\, 제목\\; 😀'));
+for (const line of text.split('\r\n')) assert(Buffer.byteLength(line) <= 75);
+assert(text.replace(/\r\n /g, '').includes('SUMMARY:행사\\, 제목\\; 😀'));
 assert(!calendar([], 'account').includes('VEVENT'));
-assert.throws(()=>calendar([{...row,end:'invalid'}],'account'));
-assert.notEqual(text,calendar([row],'other-account'));
-assert.equal(calendar([row],'account'),calendar([row],'account'),'unchanged poll must not rewrite calendar');
-const changed=calendar([{...row,name:'Changed'}],'account');
+assert.throws(() => calendar([{ ...row, end: 'invalid' }], 'account'));
+assert.notEqual(text, calendar([row], 'other-account'));
+assert.equal(
+    calendar([row], 'account'),
+    calendar([row], 'account'),
+    'unchanged poll must not rewrite calendar'
+);
+const changed = calendar([{ ...row, name: 'Changed' }], 'account');
 assert(changed.includes('UID:account-event-42@pingoose'));
 assert(changed.includes('SUMMARY:Changed'));
 console.log('PASS: calendar UID stability, updates, removals, UTC, escaping and UTF-8 folding');
 
-const {retainPast} = require('../models/agendaCalendar');
-const ended = {...row,id:'10',begin:'2020-01-01T00:00:00Z',end:'2020-01-01T01:00:00Z'};
-assert.deepEqual(retainPast([ended,row],[],Date.parse('2026-01-01')), [ended]);
-assert.equal(retainPast([ended],[{...ended,name:'Updated'}],Date.parse('2026-01-01'))[0].name,'Updated');
-assert.deepEqual(retainPast([{...ended,devTest:true}],[],Date.parse('2026-01-01')),[]);
+const { retainPast } = require('../models/agendaCalendar');
+const ended = { ...row, id: '10', begin: '2020-01-01T00:00:00Z', end: '2020-01-01T01:00:00Z' };
+assert.deepEqual(retainPast([ended, row], [], Date.parse('2026-01-01')), [ended]);
+assert.equal(
+    retainPast([ended], [{ ...ended, name: 'Updated' }], Date.parse('2026-01-01'))[0].name,
+    'Updated'
+);
+assert.deepEqual(retainPast([{ ...ended, devTest: true }], [], Date.parse('2026-01-01')), []);

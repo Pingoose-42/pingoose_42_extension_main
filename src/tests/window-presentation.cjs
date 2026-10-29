@@ -1,24 +1,45 @@
-const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const extension=fs.readFileSync('src/extension.js','utf8');
-const send=extension.slice(extension.indexOf('    _send(command) {'),extension.indexOf('    _writeNext() {'));
-const context={global:{get_current_time:()=>123456}};
-vm.createContext(context);
-const Sender=vm.runInContext('(class {'+send+'})',context);
-const sender=new Sender();Object.assign(sender,{_process:{},_commands:[],_writeNext(){}});
-sender._send('show');sender._send('project:open:{"slug":"libft"}');sender._send('slots:list');
-assert.equal(sender._commands[0],'present:123456:show');
-assert.equal(sender._commands[1],'present:123456:project:open:{"slug":"libft"}');
-assert.equal(sender._commands[2],'slots:list');
-const source=fs.readFileSync('src/worker/webview.js','utf8');
-// Extract the method through its closing brace, before the next method.
-const end=source.indexOf('\n    }',source.indexOf("else if (command === 'hide')"))+6;
-let shown=0,presented=[],urls=[];
-const Worker=vm.runInNewContext('(class {'+source.slice(source.indexOf('    command(command,'),end)+'})',{
- imports:{worker:{serviceBrowser:{open(_context,_name,url,_project,time){shown++;presented.push(time);urls.push(url);return {connect(){}};}}}},
- status:state=>{throw Error(state);},
+const fs = require('node:fs'),
+    vm = require('node:vm'),
+    assert = require('node:assert/strict');
+const Sender = vm.runInNewContext(
+    fs.readFileSync('src/services/workerBridge.js', 'utf8') + '\nWorkerBridge',
+    {
+        global: { get_current_time: () => 123456 },
+        imports: { gi: {}, misc: { extensionUtils: { getCurrentExtension: () => ({}) } } },
+    }
+);
+const sender = new Sender();
+Object.assign(sender, { _process: {}, _writeNext() {} });
+sender.send('show');
+sender.send('project:open:{"slug":"libft"}');
+sender.send('slots:list');
+assert.equal(sender._commands[0], 'present:123456:show');
+assert.equal(sender._commands[1], 'present:123456:project:open:{"slug":"libft"}');
+assert.equal(sender._commands[2], 'slots:list');
+const { controller, moduleExport } = require('./helpers.cjs');
+const Router = moduleExport('worker/commands.js', 'Router');
+const opened = [];
+const Windows = controller('worker/windows.js', {
+    imports: {
+        worker: {
+            serviceBrowser: {
+                open(_context, _name, url, project, timestamp) {
+                    opened.push({ url, project, timestamp });
+                    return { connect() {} };
+                },
+            },
+        },
+    },
 });
-const worker=new Worker();
-worker.command(sender._commands[0]);assert.equal(shown,1);assert.deepEqual(presented,[123456]);
-assert.equal(urls[0],'https://profile.intra.42.fr/');
-worker.command('present:4294967296:show');assert.equal(shown,1);
-console.log('PASS: preferred-profile navigation keeps timestamp and lets Intra select its version');
+const windows = new Windows({ canBrowse: () => true, canOpenProject: () => true, login: 'me' });
+const router = new Router({
+    show: (timestamp) =>
+        windows.open({ name: '42 Intra', url: 'https://profile.intra.42.fr/' }, timestamp),
+});
+router.dispatch(sender._commands[0]);
+assert.deepEqual(opened, [
+    { url: 'https://profile.intra.42.fr/', project: false, timestamp: 123456 },
+]);
+router.dispatch('present:4294967296:show');
+assert.equal(opened.length, 1);
+console.log('PASS: presentation timestamps survive routing and invalid timestamps are rejected');

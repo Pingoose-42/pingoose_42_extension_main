@@ -1,4 +1,4 @@
-const {Clutter, GLib, St} = imports.gi;
+const { Clutter, GLib, St } = imports.gi;
 
 // Change only scrollbar visibility, retaining its allocation to avoid layout jumps.
 var Controller = class Controller {
@@ -16,21 +16,40 @@ var Controller = class Controller {
         const signals = [];
         this.actors.set(actor, signals);
         signals.push(actor.connect('actor-added', (_parent, child) => this.watch(child)));
-        signals.push(actor.connect('destroy', () => {
-            const states = this.bars.get(actor);
-            if (states) this.release(states);
-            this.actors.delete(actor);
-        }));
+        signals.push(
+            actor.connect('destroy', () => {
+                const states = this.bars.get(actor);
+                if (states) this.release(states);
+                this.actors.delete(actor);
+            })
+        );
         if (actor instanceof St.ScrollView) {
-            const state = {scroll: actor, timer: 0, dragging: false, signals: [], bars: []};
+            const state = { scroll: actor, timer: 0, dragging: false, signals: [], bars: [] };
             this.bars.set(actor, state);
             for (const bar of [actor.get_hscroll_bar(), actor.get_vscroll_bar()]) {
                 if (!bar) continue;
-                state.bars.push({bar, opacity: bar.opacity, reactive: bar.reactive});
-                state.signals.push([bar, bar.connect('scroll-start', () => { state.dragging = true; this.activity(state); })]);
-                state.signals.push([bar, bar.connect('scroll-stop', () => { state.dragging = false; this.activity(state); })]);
+                state.bars.push({ bar, opacity: bar.opacity, reactive: bar.reactive });
+                state.signals.push([
+                    bar,
+                    bar.connect('scroll-start', () => {
+                        state.dragging = true;
+                        this.activity(state);
+                    }),
+                ]);
+                state.signals.push([
+                    bar,
+                    bar.connect('scroll-stop', () => {
+                        state.dragging = false;
+                        this.activity(state);
+                    }),
+                ]);
             }
-            signals.push(actor.connect('scroll-event', () => { this.activity(state); return Clutter.EVENT_PROPAGATE; }));
+            signals.push(
+                actor.connect('scroll-event', () => {
+                    this.activity(state);
+                    return Clutter.EVENT_PROPAGATE;
+                })
+            );
             this.apply(state);
         }
         for (const child of actor.get_children()) this.watch(child);
@@ -40,7 +59,7 @@ var Controller = class Controller {
         state.timer = 0;
     }
     visible(state, visible) {
-        for (const {bar, opacity, reactive} of state.bars) {
+        for (const { bar, opacity, reactive } of state.bars) {
             bar.opacity = visible ? opacity : 0;
             bar.reactive = visible ? reactive : false;
         }
@@ -66,8 +85,12 @@ var Controller = class Controller {
     }
     destroy() {
         this.settings.disconnect(this.settingSignal);
-        for (const state of [...this.bars.values()]) { this.visible(state, true); this.release(state); }
-        for (const [actor, signals] of this.actors) for (const signal of signals) actor.disconnect(signal);
+        for (const state of [...this.bars.values()]) {
+            this.visible(state, true);
+            this.release(state);
+        }
+        for (const [actor, signals] of this.actors)
+            for (const signal of signals) actor.disconnect(signal);
         this.actors.clear();
     }
 };

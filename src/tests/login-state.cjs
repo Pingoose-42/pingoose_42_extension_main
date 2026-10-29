@@ -2,13 +2,16 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync('src/ui/indicator.js', 'utf8');
-const start = source.indexOf('    setLoginOnly(loginOnly)');
-const end = source.indexOf('\n    }', start) + 6;
-const context = {};
-vm.createContext(context);
-vm.runInContext('class Probe {' + source.slice(start, end) + '};globalThis.Probe=Probe;', context);
-const indicator = new context.Probe();
-indicator.icon = {}; indicator.count = {};
+const Indicator = vm.runInNewContext(source + '\nIndicator', {
+    imports: {
+        gi: { GObject: { registerClass: (value) => value } },
+        ui: { panelMenu: { Button: class {} } },
+        misc: { extensionUtils: { getCurrentExtension: () => ({ imports: { ui: {} } }) } },
+    },
+});
+const indicator = Object.create(Indicator.prototype);
+indicator.icon = {};
+indicator.count = {};
 let transitions = 0;
 indicator.onLoginStateChanged = () => transitions++;
 indicator.setLoginOnly(true);
@@ -20,4 +23,6 @@ assert.equal(transitions, 2, 'periodic watching status must not close options');
 indicator.setLoginOnly(true);
 assert.equal(transitions, 3, 'actual logout still closes options');
 assert.equal(indicator.count.text, 'Login Required');
-console.log('PASS: repeated login status does not trigger menu closure; real transitions still notify');
+console.log(
+    'PASS: repeated login status does not trigger menu closure; real transitions still notify'
+);

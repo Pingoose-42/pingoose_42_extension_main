@@ -35,7 +35,7 @@ curl -fsSL https://raw.githubusercontent.com/Pingoose-42/pingoose_42_extension_m
 | --- | --- |
 | Profile | 프로필 사진, 로그인, 레벨과 진행도, 포인트, Pace 및 기한 |
 | My Projects | 프로젝트 목록. 클릭하면 TODO List / Note 패널 또는 프로젝트 웹페이지 열기 |
-| Logtime | 학습시간 정보 |
+| Logtime | 학습시간 정보. General → Logtime에서 일별 초 버림/초 포함 합산 및 하루 최대 12시간/전체 서버 시간을 선택합니다. 기본은 일별 초 버림·하루 최대 12시간이며 월 합계와 Today에 적용됩니다. |
 | Evaluation Slots | 열린 슬롯 조회·생성·닫기 |
 | Evaluation Info | 평가 역할, 프로젝트, 상대 로그인·좌석, 시작 시각과 남은 시간 |
 | Agenda | 행사·시험 일정, 구독 상태와 피드백 필요 여부 |
@@ -142,7 +142,8 @@ Settings → 42 Services에서 HTTPS 사이트를 최대 30개까지 추가·수
 | Toggle Pingoose shortcut | 기본 미지정. 키 조합으로 메인 패널 열기·닫기, Reset으로 해제 |
 | Color mode | Dark. Dark / Light 선택 |
 | Check for Updates | 로그인 후에도 즉시 GitHub 업데이트 확인 |
-| Sync agenda with Calendar | 기본 꺼짐. 아젠다 제목·시작·종료 시각을 로컬 Pingoose Agenda 캘린더에 동기화합니다. 기본 대상은 구독한 아젠다이며 All agendas로 변경할 수 있습니다. 구독 전용 모드에서 구독을 취소하면 해당 일정도 제거됩니다. PC 시간대로 표시되며, 종료된 일정은 서버 목록에서 사라져도 유지됩니다. 끄면 동기화만 중지하고 저장된 일정은 유지합니다. General의 아젠다 동기화 옵션 아래 Management 버튼으로 별도 관리 창을 열어 저장된 일정을 개별 삭제할 수 있으며 삭제한 일정은 동기화를 껐다 켜면 서버에 남아 있는 경우 다시 가져옵니다. Evolution Data Server가 필요합니다. |
+| Sync agenda with Calendar | 기본 꺼짐. 아젠다 제목·시작·종료 시각을 로컬 Pingoose Agenda 캘린더에 동기화합니다. 기본 대상은 구독한 아젠다이며 All agendas로 변경할 수 있습니다. 구독 전용 모드에서 아직 시작하지 않은 일정의 구독을 취소하면 해당 일정도 제거됩니다. PC 시간대로 표시되며, 이미 시작한 일정은 서버 목록이나 구독 표시가 사라져도 이력으로 유지됩니다. 끄면 동기화만 중지하고 저장된 일정은 유지합니다. General의 아젠다 동기화 옵션 아래 Management 버튼으로 별도 관리 창을 열어 저장된 일정을 개별 삭제할 수 있으며 삭제한 일정은 동기화를 껐다 켜면 서버에 남아 있는 경우 다시 가져옵니다. Evolution Data Server가 필요합니다. |
+| Automatically delete past calendar events | 기본 꺼짐. 켤 때 Yes/No 확인창을 표시하며, Yes를 누른 뒤 동기화 시 종료 시각이 지난 일정만 자동 삭제합니다. 진행 중인 일정은 유지하며, 동기화가 꺼져 있으면 삭제하지 않습니다. 꺼두면 지난 일정은 Management에서 직접 삭제할 때까지 유지됩니다. |
 | Auto Update | 켜짐. 새 커밋 발견 시 자동 설치. 끄면 Yes/No로 확인 |
 | Auto-close side panels | 꺼짐. 켜면 메뉴를 닫을 때 프로젝트·서비스·채팅의 옆 패널도 닫음 |
 | Agenda Reset | 숨긴 아젠다 복원 및 현재 목록 재조회. 구독·피드백 상태는 변경하지 않음 |

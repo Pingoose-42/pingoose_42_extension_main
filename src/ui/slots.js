@@ -1,10 +1,10 @@
-const {Clutter, GLib, Pango, St} = imports.gi;
+const { Clutter, GLib, Pango, St } = imports.gi;
 const PopupMenu = imports.ui.popupMenu;
 const Me = imports.misc.extensionUtils.getCurrentExtension();
 const CountLabel = Me.imports.ui.countLabel;
 
 var Controller = class Controller {
-    initManager(indicator, bridge, settings, options = {}) {
+    constructor(indicator, bridge, settings, options = {}) {
         this._indicator = indicator;
         this._bridge = bridge;
         this._settings = settings;
@@ -36,20 +36,27 @@ var Controller = class Controller {
         }
 
         if (this._bridge) {
-            this._unsubSlots = this._bridge.on('slots', msg => this.onSlotsMessage(msg));
-            this._unsubEvalCheck = this._bridge.on('evaluation-check', msg => {
+            this._unsubSlots = this._bridge.on('slots', (msg) => this.onSlotsMessage(msg));
+            this._unsubEvalCheck = this._bridge.on('evaluation-check', (msg) => {
                 this._sessionEvaluationResult = msg;
                 this._finishSessionCheck();
             });
-            this._unsubStatus = this._bridge.on('status', msg => this.onStatusMessage(msg));
-            this._unsubSignOut = this._bridge.on('signed-out', () => this.clear());
+            this._unsubStatus = this._bridge.on('status', (msg) => this.onStatusMessage(msg));
         }
     }
 
-    get slots() { return this._slots; }
-    get slotsExpanded() { return this._slotsExpanded; }
-    set slotsExpanded(v) { this._slotsExpanded = v; }
-    get slotsBusy() { return this._slotsBusy; }
+    get slots() {
+        return this._slots;
+    }
+    get slotsExpanded() {
+        return this._slotsExpanded;
+    }
+    set slotsExpanded(v) {
+        this._slotsExpanded = v;
+    }
+    get slotsBusy() {
+        return this._slotsBusy;
+    }
 
     onSlotsMessage(message) {
         this._slotsBusy = false;
@@ -65,7 +72,10 @@ var Controller = class Controller {
         this._renderSlots();
         this._sessionSlotResult = message;
         this._finishSessionCheck();
-        this._onRefreshStateCallback?.(Array.isArray(message.rows) && !message.error, message.error);
+        this._onRefreshStateCallback?.(
+            Array.isArray(message.rows) && !message.error,
+            message.error
+        );
     }
 
     onStatusMessage(message) {
@@ -78,19 +88,27 @@ var Controller = class Controller {
         }
     }
 
+    closeEditor() {
+        this._slotCreateExpanded = false;
+        this._slotDraft = null;
+        this._renderSlots();
+    }
+
     clear() {
         this._slots = [];
         this._slotPollingReady = false;
         this._slotPollBucket = null;
         this._slotDraft = null;
         this._slotCreateExpanded = false;
-        this._slotsExpanded = false;
+        this._slotsExpanded = this._settings.get_boolean('expand-slots');
         this._slotsBusy = false;
         this._slotsError = null;
         this._renderSlots();
     }
 
-    pollSlotsIfDue(time = Date.now()) { this._pollSlotsIfDue(time); }
+    pollSlotsIfDue(time = Date.now()) {
+        this._pollSlotsIfDue(time);
+    }
 
     _pollSlotsIfDue(time = Date.now()) {
         if (!this._slotPollingReady || this._indicator?.loginOnly || this._slotsBusy) return;
@@ -100,10 +118,17 @@ var Controller = class Controller {
         this._requestSlots('slots:list');
     }
 
-    finishSessionCheck() { this._finishSessionCheck(); }
+    finishSessionCheck() {
+        this._finishSessionCheck();
+    }
 
     _finishSessionCheck() {
-        if (!this._sessionSlotsCallback || !this._sessionSlotResult || !this._sessionEvaluationResult) return;
+        if (
+            !this._sessionSlotsCallback ||
+            !this._sessionSlotResult ||
+            !this._sessionEvaluationResult
+        )
+            return;
         const callback = this._sessionSlotsCallback;
         this._sessionSlotsCallback = null;
         if (this._sessionSlotsTimer) GLib.source_remove(this._sessionSlotsTimer);
@@ -111,19 +136,20 @@ var Controller = class Controller {
         callback({
             ...this._sessionSlotResult,
             evaluations: this._sessionEvaluationResult.rows,
-            evaluationError: this._sessionEvaluationResult.error
+            evaluationError: this._sessionEvaluationResult.error,
         });
     }
 
-    sessionSlotRequest(command, callback) { this._sessionSlotRequest(command, callback); }
+    sessionSlotRequest(command, callback) {
+        this._sessionSlotRequest(command, callback);
+    }
 
     _sessionSlotRequest(command, callback) {
         this._sessionSlotsCallback = callback;
         this._sessionSlotResult = null;
         this._sessionEvaluationResult = command === 'slots:list' ? null : {};
         if (command === 'slots:list') {
-            if (this._bridge) this._bridge.send('evaluations:check');
-            else if (this._send) this._send('evaluations:check');
+            this._bridge.send('evaluations:check');
         }
         if (this._sessionSlotsTimer) GLib.source_remove(this._sessionSlotsTimer);
         this._sessionSlotsTimer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 65, () => {
@@ -132,8 +158,10 @@ var Controller = class Controller {
             this._sessionSlotsCallback = null;
             pending?.({
                 ...this._sessionSlotResult,
-                error: this._sessionSlotResult?.error || (!this._sessionSlotResult ? 'Slot request timed out.' : null),
-                evaluationError: 'Evaluation check timed out.'
+                error:
+                    this._sessionSlotResult?.error ||
+                    (!this._sessionSlotResult ? 'Slot request timed out.' : null),
+                evaluationError: 'Evaluation check timed out.',
             });
             return GLib.SOURCE_REMOVE;
         });
@@ -141,31 +169,42 @@ var Controller = class Controller {
         this._requestSlots(command);
     }
 
-    requestSlots(command) { this._requestSlots(command); }
+    requestSlots(command) {
+        this._requestSlots(command);
+    }
 
     _requestSlots(command) {
         if (this._slotsBusy) return;
-        const flags = Me?.imports?.models?.featureFlags || imports.misc.extensionUtils.getCurrentExtension().imports.models.featureFlags;
-        if (command.startsWith('slots:open') && !flags.enabled(this._settings, 'hidden-auto-slots')) return;
+        const flags =
+            Me?.imports?.models?.featureFlags ||
+            imports.misc.extensionUtils.getCurrentExtension().imports.models.featureFlags;
+        if (command.startsWith('slots:open') && !flags.enabled(this._settings, 'hidden-auto-slots'))
+            return;
         this._slotCreating = command.startsWith('slots:create:');
         this._slotsBusy = true;
         this._slotsError = null;
-        if (this._bridge) this._bridge.send(command);
-        else if (this._send) this._send(command);
+        this._bridge.send(command);
         this._renderSlots();
     }
 
-    renderSlots() { this._renderSlots(); }
+    renderSlots() {
+        this._renderSlots();
+    }
 
     _renderSlots() {
-        if (this._syncOptionalSectionsCallback) this._syncOptionalSectionsCallback();
-        else if (typeof this._syncOptionalSections === 'function') this._syncOptionalSections();
+        this._syncOptionalSectionsCallback?.();
         const indicator = this._indicator;
         if (!indicator) return;
 
         if (indicator.visitIntra) {
-            CountLabel.update(indicator.visitIntra.get_child(), 'Evaluation Slots', this._slots?.length || 0, this._slotsExpanded);
-            indicator.visitIntra.style_class = 'pingoose-visit-intra' + (this._slotsExpanded ? ' pingoose-toggle-active' : '');
+            CountLabel.update(
+                indicator.visitIntra.get_child(),
+                'Evaluation Slots',
+                this._slots?.length || 0,
+                this._slotsExpanded
+            );
+            indicator.visitIntra.style_class =
+                'pingoose-visit-intra' + (this._slotsExpanded ? ' pingoose-toggle-active' : '');
         }
 
         const section = indicator.slotItems;
@@ -173,8 +212,10 @@ var Controller = class Controller {
         section.removeAll();
 
         if (this._slotsBusy) {
-            const loading = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-            const spinner = Me?.imports?.ui?.spinner || imports.misc.extensionUtils.getCurrentExtension().imports.ui.spinner;
+            const loading = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
+            const spinner =
+                Me?.imports?.ui?.spinner ||
+                imports.misc.extensionUtils.getCurrentExtension().imports.ui.spinner;
             loading.add_child(spinner.create(20));
             section.addMenuItem(loading);
             return;
@@ -182,20 +223,21 @@ var Controller = class Controller {
 
         if (this._slotsError) this._renderTextRow(section, this._slotsError, true);
         for (const slot of this._slots || []) this._renderSlotItem(slot, section);
-        if (!this._slots?.length && !this._slotsError) this._renderTextRow(section, 'No open slots.');
+        if (!this._slots?.length && !this._slotsError)
+            this._renderTextRow(section, 'No open slots.');
 
         this._renderSlotsFooter(section);
         if (this._slotCreateExpanded) this._renderSlotCreator(section);
-        if (this._slots?.some(row => !row.matched)) this._renderCloseAllRow(section);
+        if (this._slots?.some((row) => !row.matched)) this._renderCloseAllRow(section);
     }
 
     _renderTextRow(section, text, error = false) {
-        const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        const item = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
         item.remove_all_children();
         item.set_style('padding: 6px 24px 6px 0;');
         const label = new St.Label({
             text,
-            style_class: error ? 'pingoose-slot-label pingoose-slot-error' : 'pingoose-slot-label'
+            style_class: error ? 'pingoose-slot-label pingoose-slot-error' : 'pingoose-slot-label',
         });
         label.clutter_text.line_wrap = true;
         label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
@@ -205,53 +247,90 @@ var Controller = class Controller {
     }
 
     _renderSlotItem(slot, section) {
-        const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        const item = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
         item.remove_all_children();
         item.set_style('padding: 6px 24px 6px 0; spacing: 8px;');
-        const format = value => new Date(value).toLocaleString('en-GB', {
-            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
+        const format = (value) =>
+            new Date(value).toLocaleString('en-GB', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
         const label = new St.Label({
             text: `${format(slot.start)} – ${format(slot.end)}`,
             x_expand: false,
             y_align: Clutter.ActorAlign.CENTER,
-            style_class: slot.matched ? 'pingoose-slot-label pingoose-slot-matched' : 'pingoose-slot-label pingoose-profile-level'
+            style_class: slot.matched
+                ? 'pingoose-slot-label pingoose-slot-matched'
+                : 'pingoose-slot-label pingoose-profile-level',
         });
         label.clutter_text.line_wrap = true;
         item.add_child(label);
 
-        const minutes = Math.max(0, Math.round((Date.parse(slot.end) - Date.parse(slot.start)) / 60000));
+        const minutes = Math.max(
+            0,
+            Math.round((Date.parse(slot.end) - Date.parse(slot.start)) / 60000)
+        );
         const duration = [
             [Math.floor(minutes / 1440), 'd'],
             [Math.floor((minutes % 1440) / 60), 'h'],
-            [minutes % 60, 'm']
-        ].filter(([v]) => v > 0).map(([v, u]) => `${v} ${u}`).join(' ');
+            [minutes % 60, 'm'],
+        ]
+            .filter(([v]) => v > 0)
+            .map(([v, u]) => `${v} ${u}`)
+            .join(' ');
 
-        if (duration) item.add_child(new St.Label({text: `(${duration})`, style_class: 'pingoose-slot-duration', y_align: Clutter.ActorAlign.CENTER}));
-        item.add_child(new St.Widget({x_expand: true}));
+        if (duration)
+            item.add_child(
+                new St.Label({
+                    text: `(${duration})`,
+                    style_class: 'pingoose-slot-duration',
+                    y_align: Clutter.ActorAlign.CENTER,
+                })
+            );
+        item.add_child(new St.Widget({ x_expand: true }));
         if (slot.matched) {
-            item.add_child(new St.Label({text: 'Evaluation Matched', style_class: 'pingoose-slot-matched', y_align: Clutter.ActorAlign.CENTER}));
+            item.add_child(
+                new St.Label({
+                    text: 'Evaluation Matched',
+                    style_class: 'pingoose-slot-matched',
+                    y_align: Clutter.ActorAlign.CENTER,
+                })
+            );
             section.addMenuItem(item);
             return;
         }
-        const close = new St.Button({label: '×', can_focus: true, accessible_name: 'Close slot', style_class: 'pingoose-dismiss'});
+        const close = new St.Button({
+            label: '×',
+            can_focus: true,
+            accessible_name: 'Close slot',
+            style_class: 'pingoose-dismiss',
+        });
         close.connect('clicked', () => this._requestSlots(`slots:close:${slot.id}`));
         item.add_child(close);
         section.addMenuItem(item);
     }
 
     _renderSlotsFooter(section) {
-        const footer = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        const footer = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
         footer.remove_all_children();
         footer.set_style('padding: 6px 24px 6px 0; spacing: 6px;');
 
-        const refresh = new St.Button({label: 'Refresh', can_focus: true, style_class: 'pingoose-clear-button'});
+        const refresh = new St.Button({
+            label: 'Refresh',
+            can_focus: true,
+            style_class: 'pingoose-clear-button',
+        });
         refresh.connect('clicked', () => this._requestSlots('slots:list'));
         footer.add_child(refresh);
 
         const create = new St.Button({
-            label: 'Create Slot', can_focus: true,
-            style_class: 'pingoose-clear-button' + (this._slotCreateExpanded ? ' pingoose-toggle-active' : '')
+            label: 'Create Slot',
+            can_focus: true,
+            style_class:
+                'pingoose-clear-button' +
+                (this._slotCreateExpanded ? ' pingoose-toggle-active' : ''),
         });
         create.connect('clicked', () => {
             this._slotCreateExpanded = !this._slotCreateExpanded;
@@ -259,9 +338,15 @@ var Controller = class Controller {
         });
         footer.add_child(create);
 
-        const flags = Me?.imports?.models?.featureFlags || imports.misc.extensionUtils.getCurrentExtension().imports.models.featureFlags;
+        const flags =
+            Me?.imports?.models?.featureFlags ||
+            imports.misc.extensionUtils.getCurrentExtension().imports.models.featureFlags;
         if (flags?.enabled(this._settings, 'hidden-auto-slots')) {
-            const auto = new St.Button({label: 'Auto Open', can_focus: true, style_class: 'pingoose-clear-button'});
+            const auto = new St.Button({
+                label: 'Auto Open',
+                can_focus: true,
+                style_class: 'pingoose-clear-button',
+            });
             auto.connect('clicked', () => this._requestSlots('slots:open-auto'));
             footer.add_child(auto);
         }
@@ -269,20 +354,23 @@ var Controller = class Controller {
     }
 
     _renderSlotCreator(section) {
-        const schedule = Me?.imports?.models?.slotSchedule || imports.misc.extensionUtils.getCurrentExtension().imports.models.slotSchedule;
-        const format = value => {
-            const d = new Date(value), pad = n => String(n).padStart(2, '0');
+        const schedule =
+            Me?.imports?.models?.slotSchedule ||
+            imports.misc.extensionUtils.getCurrentExtension().imports.models.slotSchedule;
+        const format = (value) => {
+            const d = new Date(value),
+                pad = (n) => String(n).padStart(2, '0');
             return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         };
         const earliest = () => Math.ceil((Date.now() + 1800000) / 900000) * 900000;
         if (!Number.isFinite(this._slotDraft?.begin) || this._slotDraft.begin < earliest()) {
             const begin = earliest();
-            this._slotDraft = {begin, end: begin + 1800000};
+            this._slotDraft = { begin, end: begin + 1800000 };
         }
 
         const labels = [];
         const sync = () => {
-            for (const {key, date, hour, minute} of labels) {
+            for (const { key, date, hour, minute } of labels) {
                 const value = new Date(this._slotDraft[key]);
                 date.text = `${String(value.getMonth() + 1).padStart(2, '0')}/${String(value.getDate()).padStart(2, '0')}`;
                 hour.text = String(value.getHours()).padStart(2, '0') + ' h';
@@ -295,7 +383,10 @@ var Controller = class Controller {
             const latest = Math.floor((Date.now() + 7 * 86400000) / 900000) * 900000;
             if (key === 'begin') {
                 const duration = draft.end - draft.begin;
-                draft.begin = Math.max(earliest(), Math.min(draft.begin + delta, latest - duration));
+                draft.begin = Math.max(
+                    earliest(),
+                    Math.min(draft.begin + delta, latest - duration)
+                );
                 draft.end = draft.begin + duration;
             } else {
                 draft.end = Math.max(draft.begin + 900000, Math.min(draft.end + delta, latest));
@@ -303,44 +394,102 @@ var Controller = class Controller {
             sync();
         };
 
-        const cardItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        const cardItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
         cardItem.remove_all_children();
         cardItem.set_style('padding: 6px 24px 6px 0;');
-        const card = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'pingoose-slot-create-card'});
-        const range = new St.BoxLayout({x_expand: true, style_class: 'pingoose-slot-editor'});
+        const card = new St.BoxLayout({
+            vertical: true,
+            x_expand: true,
+            style_class: 'pingoose-slot-create-card',
+        });
+        const range = new St.BoxLayout({ x_expand: true, style_class: 'pingoose-slot-editor' });
         card.add_child(range);
         cardItem.add_child(card);
         section.addMenuItem(cardItem);
 
-        for (const [key, label] of [['begin', 'From'], ['end', 'Until']]) {
-            if (key === 'end') range.add_child(new St.Label({text: '–', style_class: 'pingoose-slot-range-divider', y_align: Clutter.ActorAlign.CENTER}));
-            const item = new St.BoxLayout({style_class: 'pingoose-slot-time-group', x_expand: true});
-            const parts = {key};
-            for (const [part, delta, name] of [['date', 86400000, 'day'], ['hour', 3600000, 'hour'], ['minute', 900000, '15 minutes']]) {
+        for (const [key, label] of [
+            ['begin', 'From'],
+            ['end', 'Until'],
+        ]) {
+            if (key === 'end')
+                range.add_child(
+                    new St.Label({
+                        text: '–',
+                        style_class: 'pingoose-slot-range-divider',
+                        y_align: Clutter.ActorAlign.CENTER,
+                    })
+                );
+            const item = new St.BoxLayout({
+                style_class: 'pingoose-slot-time-group',
+                x_expand: true,
+            });
+            const parts = { key };
+            for (const [part, delta, name] of [
+                ['date', 86400000, 'day'],
+                ['hour', 3600000, 'hour'],
+                ['minute', 900000, '15 minutes'],
+            ]) {
                 const column = new St.BoxLayout({
                     vertical: true,
-                    style_class: part === 'date' ? 'pingoose-slot-stepper pingoose-slot-date-stepper' : 'pingoose-slot-stepper',
-                    x_expand: true
+                    style_class:
+                        part === 'date'
+                            ? 'pingoose-slot-stepper pingoose-slot-date-stepper'
+                            : 'pingoose-slot-stepper',
+                    x_expand: true,
                 });
-                const up = new St.Button({label: '▴', can_focus: true, accessible_name: `Increase ${label} ${name}`, style_class: 'pingoose-slot-step-button'});
-                const value = new St.Label({text: '', style_class: 'pingoose-slot-step-value pingoose-profile-level', x_align: Clutter.ActorAlign.CENTER});
-                const down = new St.Button({label: '▾', can_focus: true, accessible_name: `Decrease ${label} ${name}`, style_class: 'pingoose-slot-step-button'});
+                const up = new St.Button({
+                    label: '▴',
+                    can_focus: true,
+                    accessible_name: `Increase ${label} ${name}`,
+                    style_class: 'pingoose-slot-step-button',
+                });
+                const value = new St.Label({
+                    text: '',
+                    style_class: 'pingoose-slot-step-value pingoose-profile-level',
+                    x_align: Clutter.ActorAlign.CENTER,
+                });
+                const down = new St.Button({
+                    label: '▾',
+                    can_focus: true,
+                    accessible_name: `Decrease ${label} ${name}`,
+                    style_class: 'pingoose-slot-step-button',
+                });
                 up.connect('clicked', () => adjust(key, delta));
                 down.connect('clicked', () => adjust(key, -delta));
-                column.add_child(up); column.add_child(value); column.add_child(down);
-                item.add_child(column); parts[part] = value;
+                column.add_child(up);
+                column.add_child(value);
+                column.add_child(down);
+                item.add_child(column);
+                parts[part] = value;
             }
-            labels.push(parts); range.add_child(item);
+            labels.push(parts);
+            range.add_child(item);
         }
         sync();
 
-        const actions = new St.BoxLayout({x_expand: true});
-        const submit = new St.Button({label: 'Create', can_focus: true, x_expand: true, x_align: Clutter.ActorAlign.END, style_class: 'pingoose-clear-button'});
+        const actions = new St.BoxLayout({ x_expand: true });
+        const submit = new St.Button({
+            label: 'Create',
+            can_focus: true,
+            x_expand: true,
+            x_align: Clutter.ActorAlign.END,
+            style_class: 'pingoose-clear-button',
+        });
         submit.connect('clicked', () => {
             try {
-                const payload = schedule.manual(format(this._slotDraft.begin), format(this._slotDraft.end));
-                const conflict = (this._slots || []).find(row => Date.parse(row.start) < Date.parse(payload.end) && Date.parse(row.end) > Date.parse(payload.begin));
-                if (conflict) throw new Error(`Could not create slot:\nOverlaps ${format(conflict.start)} – ${format(conflict.end)}.`);
+                const payload = schedule.manual(
+                    format(this._slotDraft.begin),
+                    format(this._slotDraft.end)
+                );
+                const conflict = (this._slots || []).find(
+                    (row) =>
+                        Date.parse(row.start) < Date.parse(payload.end) &&
+                        Date.parse(row.end) > Date.parse(payload.begin)
+                );
+                if (conflict)
+                    throw new Error(
+                        `Could not create slot:\nOverlaps ${format(conflict.start)} – ${format(conflict.end)}.`
+                    );
                 this._requestSlots('slots:create:' + JSON.stringify(payload));
             } catch (error) {
                 this._slotsError = error.message;
@@ -352,10 +501,16 @@ var Controller = class Controller {
     }
 
     _renderCloseAllRow(section) {
-        const closeRow = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        const closeRow = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
         closeRow.remove_all_children();
         closeRow.set_style('padding: 6px 24px 6px 0;');
-        const all = new St.Button({label: 'Close All Slots', can_focus: true, x_expand: true, x_align: Clutter.ActorAlign.END, style_class: 'pingoose-clear-button'});
+        const all = new St.Button({
+            label: 'Close All Slots',
+            can_focus: true,
+            x_expand: true,
+            x_align: Clutter.ActorAlign.END,
+            style_class: 'pingoose-clear-button',
+        });
         all.connect('clicked', () => this._requestSlots('slots:all'));
         closeRow.add_child(all);
         section.addMenuItem(closeRow);
@@ -372,13 +527,8 @@ var Controller = class Controller {
         this._unsubSlots?.();
         this._unsubEvalCheck?.();
         this._unsubStatus?.();
-        this._unsubSignOut?.();
         this._slots = [];
     }
 };
 
-function SlotManager(indicator, bridge, settings, options = {}) {
-    this.initManager(indicator, bridge, settings, options);
-}
-SlotManager.prototype = Object.create(Controller.prototype);
-SlotManager.prototype.constructor = SlotManager;
+var SlotManager = Controller;

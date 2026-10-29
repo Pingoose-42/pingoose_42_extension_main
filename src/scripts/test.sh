@@ -10,7 +10,7 @@ while IFS= read -r -d '' file; do
     node --check "$file"
 done < <(find src -type f -name '*.js' ! -path 'src/tests/*' -print0)
 for test in src/tests/*.cjs; do
-    [[ "$test" == src/tests/source.cjs ]] && continue
+    [[ "$test" == src/tests/helpers.cjs ]] && continue
     node "$test"
 done
 python3 src/tests/updater.py
