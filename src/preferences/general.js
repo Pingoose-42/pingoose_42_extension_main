@@ -2,6 +2,7 @@ const {Gtk, Gio, GLib} = imports.gi;
 const Common = imports.misc.extensionUtils.getCurrentExtension().imports.preferences.common;
 function build(settings) {
     const box = new Gtk.Box({orientation:Gtk.Orientation.VERTICAL,spacing:18});
+    Common.sectionHeading(box, 'Panel & Shortcuts', false);
     imports.misc.extensionUtils.getCurrentExtension().imports.preferences.panelShortcut.append(box,settings);
     const theme = new Gtk.ComboBoxText();
     theme.append('dark','Dark'); theme.append('light','Light');
@@ -10,6 +11,7 @@ function build(settings) {
     const autoClose=new Gtk.Switch({valign:Gtk.Align.CENTER});
     settings.bind('auto-close-panels',autoClose,'active',Gio.SettingsBindFlags.DEFAULT);
     Common.row(box,'Auto-close side panels',autoClose);
+    Common.sectionHeading(box, 'Agenda & Calendar');
     const calendarSync = new Gtk.Switch({valign: Gtk.Align.CENTER});
     settings.bind('sync-agenda-calendar', calendarSync, 'active', Gio.SettingsBindFlags.DEFAULT);
     Common.row(box, 'Sync agenda with Calendar', calendarSync);
@@ -46,10 +48,10 @@ function build(settings) {
         managementWindow.present();
     });
     box.append(manageCalendar);
-    box.append(new Gtk.Label({label: 'Show Intra agenda titles and times in a separate local Pingoose Agenda calendar. Turning this off pauses syncing and keeps saved events. Manage saved events in Management. Requires Evolution Data Server.', xalign: 0, wrap: true}));
     const calendarStatus = new Gtk.Label({xalign: 0, wrap: true});
     settings.bind('agenda-calendar-status', calendarStatus, 'label', Gio.SettingsBindFlags.GET);
     box.append(calendarStatus);
+    Common.sectionHeading(box, 'Updates');
     const checkUpdate = new Gtk.Button({label: 'Check for Updates'});
     checkUpdate.connect('clicked', () => {
         settings.set_string('update-check-request', GLib.uuid_string_random());
@@ -59,9 +61,7 @@ function build(settings) {
     const autoUpdate = new Gtk.Switch({valign: Gtk.Align.CENTER});
     settings.bind('auto-update', autoUpdate, 'active', Gio.SettingsBindFlags.DEFAULT);
     Common.row(box, 'Auto Update', autoUpdate);
-    box.append(new Gtk.Label({label: 'Install new versions automatically after login. When off, ask before installing.',
-        xalign: 0, wrap: true}));
-    box.append(new Gtk.Separator());
+    Common.sectionHeading(box, 'Account & Data');
     const agendaReset=new Gtk.Button({label:'Agenda Reset'});
     agendaReset.connect('clicked',()=>Common.confirm(box,'Reset agenda cards?',
         'Restore deleted agenda cards and request the current agenda from Intra. This does not change subscriptions or submit feedback.',
@@ -78,7 +78,6 @@ function build(settings) {
             Gio.Settings.sync();
         }));
     box.append(logout);
-    box.append(new Gtk.Label({label:'Restore defaults, delete all local extension data and log out of Intra.',xalign:0,wrap:true}));
     const reset = new Gtk.Button({label:'Reset All Data'}); box.append(reset);
     const status = new Gtk.Label({label:'',xalign:0,wrap:true}); box.append(status);
     const refresh = () => {

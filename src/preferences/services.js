@@ -5,11 +5,12 @@ const Common = Me.imports.preferences.common;
 function build(settings) {
     const box = new Gtk.Box({orientation:Gtk.Orientation.VERTICAL,spacing:12,
         margin_top:24,margin_bottom:24,margin_start:24,margin_end:24});
+    Common.sectionHeading(box, 'Service Panel', false);
     const toggle = new Gtk.Switch({valign:Gtk.Align.CENTER});
     settings.bind('service-enabled',toggle,'active',Gio.SettingsBindFlags.DEFAULT);
     const header = new Gtk.Box({spacing:12});
     header.append(new Gtk.Label({label:'Enable 42 Services',xalign:0,hexpand:true})); header.append(toggle);box.append(header);
-    box.append(new Gtk.Label({label:'Add up to 30 HTTPS websites. Changes apply immediately.',xalign:0,wrap:true}));
+    Common.sectionHeading(box, 'Add Website');
     const name = new Gtk.Entry({placeholder_text:'Site name'});
     const url = new Gtk.Entry({placeholder_text:'https://example.org/'});
     box.append(name);box.append(url);
@@ -18,6 +19,7 @@ function build(settings) {
     const reset = new Gtk.Button({label:'Restore Defaults'});
     actions.append(add);actions.append(reset);box.append(actions);
     const error = new Gtk.Label({label:'',xalign:0,wrap:true});box.append(error);
+    Common.sectionHeading(box, 'Saved Websites');
     const list=new Gtk.Box({orientation:Gtk.Orientation.VERTICAL,spacing:12});box.append(list);
     const save = sites => settings.set_string('service-sites',JSON.stringify(sites));
     const render = () => Common.preserveListScroll(list, list, () => {

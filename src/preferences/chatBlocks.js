@@ -6,7 +6,6 @@ function open(parent,settings) {
     dialog.connect('response',()=>dialog.destroy());
     const box=dialog.get_content_area();box.spacing=12;
     box.margin_top=box.margin_bottom=box.margin_start=box.margin_end=18;
-    box.append(new Gtk.Label({label:'Block a cluster (c2), row (c2r3), seat (c2r3s4), or Intra ID (@login). Blocked conversations are disconnected immediately.',wrap:true,xalign:0}));
     const input=new Gtk.Box({spacing:8});
     const entry=new Gtk.Entry({placeholder_text:'Seat or @Intra ID',hexpand:true});
     const add=new Gtk.Button({label:'Add'});

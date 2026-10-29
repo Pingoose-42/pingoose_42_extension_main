@@ -1,4 +1,4 @@
-const {Gtk} = imports.gi;
+const {Gtk, Pango} = imports.gi;
 // One native GTK scroll viewport per tab: wheel and touchpad behavior should
 // not depend on whether the pointer is over a header, form, or saved list.
 function scrollPage(content) {
@@ -62,4 +62,15 @@ function preserveListScroll(scroll, list, update) {
             scroll._pingooseScrollRestore = null;
         });
     }
+}
+
+// Consistent headings for preference groups; keep controls and their bindings intact.
+function sectionHeading(parent, title, separator = true) {
+    if (separator) parent.append(new Gtk.Separator({margin_top: 6, margin_bottom: 6}));
+    const label = new Gtk.Label({label: title, xalign: 0});
+    label.add_css_class('heading');
+    const attributes = new Pango.AttrList();
+    attributes.insert(Pango.attr_scale_new(1.12));
+    label.set_attributes(attributes);
+    parent.append(label);
 }

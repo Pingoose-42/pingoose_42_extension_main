@@ -3,12 +3,13 @@ const Common=imports.misc.extensionUtils.getCurrentExtension().imports.preferenc
 const Notes=imports.misc.extensionUtils.getCurrentExtension().imports.models.projectNotes;
 function build(settings){
     const root=new Gtk.Box({orientation:Gtk.Orientation.VERTICAL,spacing:14,margin_top:24,margin_bottom:24,margin_start:24,margin_end:24});
+    Common.sectionHeading(root, 'Project Behavior', false);
     const row=new Gtk.Box({spacing:12});row.append(new Gtk.Label({label:'Open project page directly',hexpand:true,xalign:0}));
     const toggle=new Gtk.Switch({valign:Gtk.Align.CENTER});settings.bind('project-open-direct',toggle,'active',Gio.SettingsBindFlags.DEFAULT);row.append(toggle);root.append(row);
     const firstTab=new Gtk.ComboBoxText();firstTab.append('todo','TODO List');firstTab.append('note','Note');
     settings.bind('project-default-tab',firstTab,'active-id',Gio.SettingsBindFlags.DEFAULT);
     Common.row(root,'Default project tab',firstTab);
-    root.append(new Gtk.Label({label:'Off: open TODO List and Note panel.\nTasks and notes are grouped by project, including My Projects.',xalign:0,wrap:true}));
+    Common.sectionHeading(root, 'Saved Notes & TODO Lists');
     const actions=new Gtk.Box({spacing:8});root.append(actions);
     const refresh=new Gtk.Button({label:'Refresh Notes'});actions.append(refresh);
     const clear=new Gtk.Button({label:'Delete All'});actions.append(clear);

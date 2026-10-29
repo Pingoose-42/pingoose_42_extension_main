@@ -51,11 +51,15 @@
       <summary>System notification banner duration in seconds</summary>
       <description>Zero keeps Pingoose banners visible until dismissed.</description>
     </key>
+    <key name="flash-interval" type="d"><range min="0.5" max="10.0"/><default>1.0</default><summary>Seconds between screen flash pulse starts</summary></key>
+    <key name="flash-preview-request" type="s"><default>''</default><summary>Request a screen flash preview</summary></key>
+    <key name="flash-brightness" type="i"><range min="10" max="200"/><default>100</default><summary>Screen flash brightness relative to the default, in percent</summary></key>
+    <key name="flash-thickness" type="i"><range min="1" max="40"/><default>5</default><summary>Screen flash border thickness in pixels</summary></key>
     <key name="flash-count" type="i">
       <range min="0" max="5"/>
       <default>1</default>
       <summary>Number of screen-edge pulses per notification</summary>
-      <description>Zero disables the effect. Pulses start at least one second apart.</description>
+      <description>Zero disables the effect. Pulse spacing is controlled by the flash interval setting.</description>
     </key>
     <key name="popup-top-margin" type="i"><range min="0" max="100"/><default>6</default><summary>Popup top margin</summary></key>
     <key name="popup-left-margin" type="i"><range min="0" max="100"/><default>9</default><summary>Popup offset to the left</summary></key>

@@ -5,7 +5,6 @@ const Model = Me.imports.models.agendaCalendar;
 function build(settings) {
     const root = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 14});
     root.append(new Gtk.Label({label: 'Saved agenda events', xalign: 0, css_classes: ['heading']}));
-    root.append(new Gtk.Label({label: 'Past and upcoming events saved to Pingoose Agenda. Deleting an event removes it from your calendar and keeps it removed until you turn sync off and on again. Intra registration is unchanged.', xalign: 0, wrap: true}));
     const refresh = new Gtk.Button({label: 'Refresh'}); root.append(refresh);
     const list = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 10}); root.append(list);
     const file = Gio.File.new_for_path(GLib.build_filenamev([GLib.get_user_data_dir(), 'pingoose', 'calendar', 'history.json']));
