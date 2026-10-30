@@ -230,3 +230,35 @@ assert.equal(wrapped.length, 1);
 assert.equal(wrapped[0].width, 392);
 assert.equal(wrapped[0].request_mode, 0);
 assert.equal(wrapped[0].y_expand, false);
+
+let closed = 0;
+p._indicator.menu.close = () => closed++;
+for (const kind of ['event', 'exam']) {
+    const pending = { ...detail, kind, feedback: true, name: 'Long agenda title '.repeat(10) };
+    p._agenda = [pending];
+    p._agendaExpanded.clear();
+    p._renderAgenda();
+    const actors = section.items.flatMap(all);
+    const details = actors.find((actor) => actor.style_class === 'pingoose-agenda-details');
+    const feedback = actors.find((actor) => actor.label === 'Write Feedback');
+    assert(feedback, 'pending feedback needs a visible action, not only a badge');
+    assert.equal(feedback.can_focus, true);
+    assert.equal(details.visible, false);
+    assert(!all(details).includes(feedback), 'feedback action must not be hidden inside Details');
+    assert(!actors.some((actor) => actor.label === 'Visit Agenda Page'));
+    click('Write Feedback');
+    assert.match(p.sent, /^service:open:/);
+    const page = JSON.parse(p.sent.slice('service:open:'.length));
+    assert.equal(page.url, 'https://projects.intra.42.fr/events/1/feedbacks/new');
+    assert(page.name.length <= 80, 'long agenda titles must fit the service window limit');
+    assert.equal(p._agenda[0].feedback, true, 'opening the page must not mark feedback complete');
+}
+assert.equal(closed, 2);
+handle.call(p, { type: 'agenda', rows: [{ ...detail, feedback: false }] });
+assert(!section.items.flatMap(all).some((actor) => actor.label === 'Write Feedback'));
+p._agenda = [{ ...detail, id: '1/../../other', feedback: true }];
+p._renderAgenda();
+assert(!section.items.flatMap(all).some((actor) => actor.label === 'Write Feedback'));
+console.log(
+    'PASS: visible feedback action opens the Intra feedback form; only server completion removes it'
+);

@@ -112,27 +112,41 @@ var AgendaClient = class AgendaClient {
             }
             try {
                 // Replace only after both snapshots succeed; errors must not erase the list.
-                const merged = new Map(results[0].map((row) => [row.id, row]));
-                for (const row of results[1]) merged.set(row.id, row);
+                // Keep required feedback ahead of upcoming events within the UI's 100-row limit.
+                const merged = new Map(results[1].map((row) => [row.id, row]));
+                for (const row of results[0]) if (!merged.has(row.id)) merged.set(row.id, row);
                 const rows = [...merged.values()].slice(0, 100);
                 const state = Model.advanceSeen(worker.readState(), identity.subject, []).state;
                 const seen = new Set(state.agendaIds);
+                const feedbackSeen = new Set(state.agendaFeedbackIds);
                 state.agendaIds = [
                     ...new Set([...state.agendaIds, ...rows.map((row) => row.id)]),
                 ].slice(-2000);
+                state.agendaFeedbackIds = [
+                    ...new Set([
+                        ...state.agendaFeedbackIds,
+                        ...rows.filter((row) => row.feedback).map((row) => row.id),
+                    ]),
+                ].slice(-2000);
                 worker.writeState(state);
-                if (worker.evaluationState?.subject === state.subject)
+                if (worker.evaluationState?.subject === state.subject) {
                     worker.evaluationState.agendaIds = state.agendaIds;
+                    worker.evaluationState.agendaFeedbackIds = state.agendaFeedbackIds;
+                }
                 emit({ type: 'agenda', rows, subject: identity.subject });
                 worker.refreshPart('agenda');
-                for (const row of rows)
-                    if (!seen.has(row.id))
-                        emit({
-                            type: 'notification',
-                            id: `agenda:${row.id}`,
-                            category: 'agenda',
-                            body: `New agenda event · ${row.name}\n${new Date(row.begin).toLocaleString('en-GB')}${row.location ? ` · ${row.location}` : ''}`,
-                        });
+                for (const row of rows) {
+                    if ((row.feedback ? feedbackSeen : seen).has(row.id)) continue;
+                    emit({
+                        type: 'notification',
+                        id: `${row.feedback ? 'agenda-feedback' : 'agenda'}:${row.id}`,
+                        category: 'agenda',
+                        title: row.feedback ? 'Agenda feedback required' : 'New Agenda Event',
+                        body: row.feedback
+                            ? `Feedback required · ${row.name}\nPlease submit your feedback on Intra.`
+                            : `New agenda event · ${row.name}\n${new Date(row.begin).toLocaleString('en-GB')}${row.location ? ` · ${row.location}` : ''}`,
+                    });
+                }
             } catch (_) {
                 this.nextPoll = now() + 60;
             }

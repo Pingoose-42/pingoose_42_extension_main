@@ -111,7 +111,7 @@ function storedState(text) {
         new Set(state.ids).size !== state.ids.length
     )
         throw new Error('storage-error');
-    for (const field of ['dismissed', 'reminders', 'agendaIds']) {
+    for (const field of ['dismissed', 'reminders', 'agendaIds', 'agendaFeedbackIds']) {
         if (state[field] === undefined) state[field] = [];
         if (
             !Array.isArray(state[field]) ||
@@ -189,6 +189,7 @@ function advanceSeen(previous, subject, rows) {
             dismissed: baseline ? previous.dismissed || [] : [],
             reminders: baseline ? previous.reminders || [] : [],
             agendaIds: baseline ? previous.agendaIds || [] : [],
+            agendaFeedbackIds: baseline ? previous.agendaFeedbackIds || [] : [],
         },
         added: rows.filter(
             (row) => !seen.has(row.id) && !(baseline && previous.dismissed?.includes(row.id))

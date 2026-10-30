@@ -177,6 +177,27 @@ var Controller = class Controller {
         heading.add_child(summaryRow);
         this._agendaTimes.push({ label: summary, row });
 
+        const feedbackUrl = row.feedback ? Agenda.agendaFeedbackUrl(row.id) : null;
+        if (feedbackUrl) {
+            const feedback = new St.Button({
+                label: 'Write Feedback',
+                can_focus: true,
+                x_expand: true,
+                style_class: 'pingoose-feedback-button',
+            });
+            feedback.connect('clicked', () => {
+                this._indicator.menu.close();
+                this._bridge.send(
+                    'service:open:' +
+                        JSON.stringify({
+                            name: row.name.slice(0, 80),
+                            url: feedbackUrl,
+                        })
+                );
+            });
+            box.add_child(feedback);
+        }
+
         const expanded = this._agendaExpanded?.has(row.id);
         const more = new St.Button({
             label: 'Details',
@@ -301,23 +322,6 @@ var Controller = class Controller {
             text('Register for both the exam session and the exam project to attend.');
         if (this._agendaActionStatus?.id === row.id && this._agendaActionStatus.text)
             text(this._agendaActionStatus.text);
-
-        if (row.feedback && /^\d+$/.test(row.id)) {
-            const visit = new St.Button({
-                label: 'Visit Agenda Page',
-                can_focus: true,
-                style_class: 'pingoose-clear-button',
-            });
-            visit.connect('clicked', () => {
-                this._indicator.menu.close();
-                const payload = JSON.stringify({
-                    name: row.name,
-                    url: `https://profile.intra.42.fr/${row.kind === 'exam' ? 'exams' : 'events'}/${row.id}`,
-                });
-                this._bridge.send('service:open:' + payload);
-            });
-            details.add_child(visit);
-        }
 
         const action = row.subscribed ? 'unsubscribe' : 'subscribe';
         if (Agenda.agendaAction(row, action)) {

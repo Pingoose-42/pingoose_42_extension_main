@@ -179,6 +179,25 @@ var Controller = class Controller {
         }
     }
 
+    _agendaFeedbackAction(message) {
+        const match = /^agenda-feedback:(.+)$/.exec(message.id || '');
+        if (message.category !== 'agenda' || !match) return null;
+        const url = imports.misc.extensionUtils
+            .getCurrentExtension()
+            .imports.models.agenda.agendaFeedbackUrl(match[1]);
+        if (!url) return null;
+        return () => {
+            this._indicator?.menu.close();
+            this._bridge.send(
+                'service:open:' +
+                    JSON.stringify({
+                        name: 'Agenda feedback',
+                        url,
+                    })
+            );
+        };
+    }
+
     _showBanner(message) {
         if (!this._bannerSource) {
             this._bannerSource = new MessageTray.Source(
@@ -214,7 +233,9 @@ var Controller = class Controller {
         const banner = new MessageTray.Notification(this._bannerSource, title, body);
         banner.pingooseBanner = true;
         banner.setTransient(true);
-        banner.connect('activated', () => this._indicator?.menu.open());
+        const feedback = this._agendaFeedbackAction(message);
+        if (feedback) banner.addAction('Write Feedback', feedback);
+        banner.connect('activated', feedback || (() => this._indicator?.menu.open()));
         this._bannerSource.showNotification(banner);
     }
 
@@ -321,6 +342,17 @@ var Controller = class Controller {
         body.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
         body.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         card.add_child(body);
+        const feedback = this._agendaFeedbackAction(notification);
+        if (feedback) {
+            const button = new St.Button({
+                label: 'Write Feedback',
+                can_focus: true,
+                x_expand: true,
+                style_class: 'pingoose-visit-intra',
+            });
+            button.connect('clicked', feedback);
+            card.add_child(button);
+        }
         card.add_child(
             new St.Label({
                 text: `Received at ${notification.time}`,

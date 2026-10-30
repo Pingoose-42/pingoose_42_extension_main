@@ -55,6 +55,12 @@ function parseAgenda(data, feedback = false) {
     });
 }
 
+function agendaFeedbackUrl(id) {
+    if (typeof id !== 'string' || !/^[1-9]\d{0,127}$/.test(id)) return null;
+    // Intra's Feedback button uses the event ID on projects, regardless of the agenda kind.
+    return `https://projects.intra.42.fr/events/${id}/feedbacks/new`;
+}
+
 // The same constraints used by the Intra agenda UI; the server remains authoritative.
 function agendaAction(row, action, now = Date.now()) {
     if (
@@ -110,4 +116,5 @@ function agendaSummary(row, now = Date.now()) {
     return `${date} (${state})`;
 }
 
-if (typeof module !== 'undefined') module.exports = { parseAgenda, agendaAction, agendaSummary };
+if (typeof module !== 'undefined')
+    module.exports = { parseAgenda, agendaFeedbackUrl, agendaAction, agendaSummary };

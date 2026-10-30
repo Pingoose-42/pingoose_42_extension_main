@@ -40,9 +40,9 @@ Pingoose는 GNOME Shell UI와 별도 GTK/WebKit 워커로 실행됩니다. 설�
 ## 알림, 캘린더, 캐시
 
 - 시작 전 알림은 `models/startReminders.js`에서 후보를 계산하고 `services/startReminders.js`에서 설정과 발송 이력을 적용합니다. 아젠다는 `subscribed === true`인 일정만 대상입니다. 평가자는 역할에 관계없이 평가 알림 대상입니다.
-- 새 아젠다 발견 알림과 시작 전 알림은 별개입니다. 새 일정 안내 정책은 유지합니다.
+- 새 아젠다 발견 알림과 시작 전 알림은 별개입니다. 미작성 피드백은 `/events/unfeedbacked` 스냅샷으로 확인하고 `agenda-feedback:<id>` 알림을 별도로 보냅니다. `agendaFeedbackIds` 이력은 기존 상태 파일과 평가 상태에 함께 유지하며, 이전 파일에 필드가 없으면 빈 이력으로 읽습니다. 피드백 배너는 새 일정 즉시 알림 설정과 무관하지만 아젠다 시스템 알림 설정은 따릅니다.
 - 캘린더 이력 병합은 `models/agendaCalendar.js`가 담당합니다. 이미 시작한 일정은 서버 목록 누락·구독 표시 변경에도 보존하며, 기본 꺼짐인 자동 삭제 옵션을 켠 경우에만 종료된 일정을 동기화에서 제외합니다. 예정 일정의 구독 취소와 관리 창의 명시적 삭제는 별도로 적용합니다.
-- 알림 매니저는 카드 저장과 배너 정책을 소유하고, 화면 플래시는 별도 컨트롤러에 위임합니다.
+- 알림 매니저는 카드 저장과 배너 정책을 소유하고, 화면 플래시는 별도 컨트롤러에 위임합니다. 아젠다 피드백의 Write Feedback 버튼은 카드·배너에서 같은 액션을 사용합니다. 아젠다 카드와 알림은 `models/agenda.js`의 `agendaFeedbackUrl()`을 공유합니다. [Intra Home 위젯의 Feedback 링크](https://profile-v3.intra.42.fr/assets/Home-3667200d.js)와 동일하게 `https://projects.intra.42.fr/events/<id>/feedbacks/new`를 기존 `service:open` 경로로 엽니다. 구독 ID나 행사/시험 종류가 아니라 일정 ID를 사용하며, 클릭으로 피드백 완료나 카드 삭제를 처리하지 않습니다.
 - 저장된 테스트 평가 복원은 알림 매니저가 주입받은 `restoreTests` 콜백으로 평가 매니저에 전달합니다.
 - 로그타임 합산은 `models/logtime.js`의 순수 계산입니다. 워커는 서버 응답과 설정값을 전달합니다.
 - 메모의 개별 할 일 분리와 그룹화는 `models/projectNotes.js`, 파일 권한·원자적 저장·읽기는 `services/projectNotes.js`에 있습니다. 기존 저장 경로와 형식은 유지합니다.

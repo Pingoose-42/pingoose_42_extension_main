@@ -100,7 +100,7 @@ Create Slot 카드에서 시작–종료 날짜·시·분을 ▲▼로 조절하
 카드는 제목, 시작 날짜, 남은 시간을 표시합니다. 남은 시간의 0인 단위는 생략하며, 시작 후에는 진행·종료 상태를 표시합니다.
 
 - **Subscribed**: 구독 중이면 제목 옆에 옅게 표시합니다.
-- **Feedback required**: Details 하단의 Visit Agenda Page로 해당 일정 페이지를 열 수 있습니다. 서버의 미작성 피드백 목록(`/events/unfeedbacked`)에 포함되면 Subscribed 대신 빨간색으로 표시합니다.
+- **Feedback required**: 서버의 미작성 피드백 목록(`/events/unfeedbacked`)에 포함되면 Subscribed 대신 빨간색으로 표시하며, 예정 일정보다 먼저 보여줍니다. **Write Feedback** 버튼으로 Intra의 피드백 작성 화면을 바로 열 수 있으며 Details를 펼칠 필요가 없습니다. 처음 확인한 미작성 피드백은 별도의 **Agenda feedback required** 알림으로 한 번 안내합니다.
 - **Details**: 전체 일정, 장소(제공된 경우), 구독 인원/정원, 취소 제한 시각과 본문을 펼칩니다. 본문은 일반 텍스트로 전체 표시하며 별도의 See more 버튼은 없습니다.
 - **Subscribe / Unsubscribe**: Details 하단에서 실제 Intra 신청 상태를 변경합니다. 요청 전에 최신 정원·구독 ID·취소 기한을 확인하고 결과를 다시 조회합니다.
 - **⋮ → Hide Agenda**: 서버 구독을 변경하지 않고 패널에서 해당 카드를 숨깁니다.
@@ -121,7 +121,11 @@ My Projects의 프로젝트를 클릭하면 **TODO List / Note** 패널이 열�
 
 ## 알림
 
-평가 매칭·리마인더·좌석 정보, 새 아젠다, 채팅 메시지에 대한 시스템 알림을 제공합니다. 알림 클릭 시 메뉴를 열며 채팅 알림은 해당 대화로 연결합니다.
+평가 매칭·리마인더·좌석 정보, 새 아젠다·아젠다 피드백 요청, 채팅 메시지에 대한 시스템 알림을 제공합니다. 일반 알림 클릭 시 메뉴를 열며 채팅 알림은 해당 대화로 연결합니다. 아젠다 피드백 배너의 **Write Feedback** 버튼이나 본문을 누르면 일정 상세 페이지를 거치지 않고 피드백 작성 화면을 바로 엽니다. 저장된 피드백 알림 카드에도 같은 버튼을 제공합니다.
+
+페이지를 여는 것만으로 피드백을 완료 처리하지 않습니다. 작성 후 정상 서버 조회에서 미작성 목록에서 빠지면 아젠다의 피드백 표시와 버튼을 제거합니다.
+
+아젠다 피드백 알림은 새 일정 알림과 별도로 기록하므로 이미 알림을 받은 일정도 피드백이 필요해지면 안내합니다. 반복 조회·재로그인·재시작 시에는 다시 보내지 않습니다. **Agenda: notify immediately when added**를 꺼도 피드백 알림은 유지하며, **Agenda → System notifications**를 끄면 배너 없이 알림 카드만 저장합니다.
 
 알림 카드는 × 또는 Clear All로 삭제할 때까지 저장됩니다. 메뉴를 열면 읽음 처리합니다. 시스템 알림을 꺼도 카드와 읽지 않은 메시지는 유지됩니다. 평가 카드 제거와 알림 카드 삭제는 별개입니다.
 
@@ -155,7 +159,7 @@ Settings → 42 Services에서 HTTPS 사이트를 최대 30개까지 추가·수
 | 항목 | 기본값 / 범위 |
 | --- | --- |
 | Evaluation matches, reminders and locations | 켜짐 |
-| New agenda events | 켜짐 |
+| Agenda system notifications | 켜짐. 새 일정·시작 전·피드백 필요 알림 |
 | Cluster Chat messages | 켜짐 |
 | Warn about slots and evaluations before logout | 켜짐. PC 로그아웃 시 열린 슬롯·예정된 평가·피드백 완료 미확인 평가 안내 |
 | Banner duration (seconds) | 4초, 0~120초. 0은 직접 닫을 때까지 유지 |

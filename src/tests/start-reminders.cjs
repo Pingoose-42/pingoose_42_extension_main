@@ -33,4 +33,13 @@ assert.equal(
     ),
     true
 );
+assert.equal(
+    immediateAllowed({ id: 'agenda:1', category: 'agenda' }, { get_boolean: () => false }),
+    false
+);
+assert.equal(
+    immediateAllowed({ id: 'agenda-feedback:1', category: 'agenda' }, { get_boolean: () => false }),
+    true,
+    'disabling new-agenda announcements must not suppress required feedback'
+);
 console.log('PASS: reminder boundaries, both evaluation roles, and immediate notification gating');

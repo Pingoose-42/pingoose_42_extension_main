@@ -21,7 +21,8 @@ function due(rows, category, minutes, now = Date.now()) {
 }
 function immediateAllowed(message, settings) {
     if (message.startReminder) return true;
-    if (message.category === 'agenda') return settings.get_boolean('notify-agenda-immediate');
+    if (message.category === 'agenda' && !message.id?.startsWith('agenda-feedback:'))
+        return settings.get_boolean('notify-agenda-immediate');
     if (message.id?.startsWith('intrapy:'))
         return settings.get_boolean('notify-evaluation-immediate');
     return true;
