@@ -29,13 +29,6 @@ var Panel = class Panel {
             reactive: true,
             style_class: 'pingoose-chat pingoose-chat-panel pingoose-favorites-panel',
         });
-        this.root.add_constraint(
-            new Clutter.BindConstraint({
-                source: chat._chatUi.root,
-                coordinate: Clutter.BindCoordinate.HEIGHT,
-            })
-        );
-        chat._indicator.addPanel(this.root);
         const header = new St.BoxLayout({ style_class: 'pingoose-chat-header' });
         header.add_child(
             new St.Label({
@@ -140,6 +133,9 @@ var Panel = class Panel {
         this.list = new St.BoxLayout({ vertical: true, style_class: 'pingoose-favorites-list' });
         scroll.add_actor(this.list);
         this.root.add_child(scroll);
+        // Follow the chat card while allowing this panel's own input/error rows
+        // to grow and shrink without stealing space from its favorites list.
+        chat._indicator.addPanel(this.root, { scroll, baseActor: chat._chatUi.root });
         this.render();
     }
     toggleFilter() {

@@ -193,3 +193,143 @@ for (const id of ids) {
 console.log(
     'PASS: CSS/runtime background colors match; field, hint and selected text retain contrast'
 );
+
+// Resolve our stylesheet's type/class/pseudo selectors, including descendant
+// and child relationships. Source order alone misses selected-state rules that
+// outrank a later hover/disabled declaration. This checks the static cascade;
+// it does not pretend to render St or include the user's system stylesheet.
+function compoundMatches(selector, node) {
+    assert.match(selector, /^(?:[\w-]+)?(?:[.:][\w-]+)*$/);
+    const type = selector.match(/^[\w-]+/)?.[0];
+    return (
+        (!type || type === node.type) &&
+        [...selector.matchAll(/([.:])([\w-]+)/g)].every(([, kind, name]) =>
+            (kind === '.' ? node.classes : node.states).includes(name)
+        )
+    );
+}
+function selectorMatches(selector, nodes) {
+    const parts = selector.split(/\s+/);
+    function matches(part, node) {
+        if (node < 0 || !compoundMatches(parts[part], nodes[node])) return false;
+        if (part === 0) return true;
+        if (parts[part - 1] === '>') return matches(part - 2, node - 1);
+        for (let parent = node - 1; parent >= 0; parent--)
+            if (matches(part - 1, parent)) return true;
+        return false;
+    }
+    return matches(parts.length - 1, nodes.length - 1);
+}
+function buttonColors(id, classes, states) {
+    const nodes = [
+        { type: 'StBoxLayout', classes: Array.from(themes.styleClasses(id)), states: [] },
+        { type: 'StBoxLayout', classes: ['pingoose-chat-panel'], states: [] },
+        { type: 'StButton', classes, states },
+    ];
+    const values = {},
+        priorities = {};
+    for (const rule of rules) {
+        for (const selector of rule.selectors) {
+            if (!selectorMatches(selector, nodes)) continue;
+            const priority = [
+                (selector.match(/[.:][\w-]+/g) || []).length,
+                (selector.match(/(?:^|\s)[A-Za-z][\w-]*/g) || []).length,
+            ];
+            for (const [property, value] of Object.entries(rule.values)) {
+                const previous = priorities[property];
+                if (
+                    !previous ||
+                    priority[0] > previous[0] ||
+                    (priority[0] === previous[0] && priority[1] >= previous[1])
+                ) {
+                    values[property] = value;
+                    priorities[property] = priority;
+                }
+            }
+        }
+    }
+    return values;
+}
+const controlColors = {
+    dark: ['#315a56', '#3d6c65', '#edf0f4', '#85d6cb', '#173c36', '#2d343c', '#aab6c2'],
+    light: ['#c5e5df', '#a8d8cf', '#174e45', '#16796b', '#ffffff', '#e2e7eb', '#596673'],
+    pink: ['#eab9ce', '#dc97b6', '#452538', '#9e315f', '#ffffff', '#eed8e2', '#79556a'],
+    halloween: ['#65462e', '#79573a', '#fff0df', '#ffb86b', '#27150a', '#3c3042', '#c9b5cd'],
+    neon: ['#1d5e60', '#286f73', '#e2faff', '#64f4da', '#09252a', '#243b49', '#aac6d1'],
+};
+const controlClasses = [
+    'pingoose-dismiss',
+    'pingoose-chat-chip-close',
+    'pingoose-chat-add', // Favorites star, new-chat button and favorites panel X.
+    'pingoose-favorite-action',
+];
+for (const id of ids) {
+    const [hover, pressed, foreground, accent, accentText, disabled, disabledText] =
+        controlColors[id];
+    for (const control of controlClasses) {
+        const toggle = ['pingoose-chat-add', 'pingoose-favorite-action'].includes(control);
+        for (const selected of toggle ? [false, true] : [false]) {
+            const classes = [control, ...(selected ? ['pingoose-toggle-active'] : [])];
+            // Include overlapping pointer/key states, not only isolated :hover.
+            for (let mask = 0; mask < 8; mask++) {
+                const states = ['hover', 'focus', 'active'].filter((_, bit) => mask & (1 << bit));
+                const label = `${id} ${classes.join('.')} ${states.join(':')}`;
+                if (selected || states.length) {
+                    const current = buttonColors(id, classes, states);
+                    const active = states.includes('active');
+                    const expected =
+                        active && selected
+                            ? accent
+                            : active || (selected && mask)
+                              ? pressed
+                              : hover;
+                    const text = active && selected ? accentText : foreground;
+                    assert.equal(current['background-color'], expected, `${label} background`);
+                    assert.equal(current.color, text, `${label} foreground`);
+                    readable(text, expected, label);
+                }
+                const insensitive = buttonColors(id, classes, [...states, 'insensitive']);
+                assert.equal(
+                    insensitive['background-color'],
+                    disabled,
+                    `${label} disabled background`
+                );
+                assert.equal(insensitive.color, disabledText, `${label} disabled foreground`);
+                readable(disabledText, disabled, `${label} disabled`);
+            }
+        }
+    }
+}
+console.log(
+    'PASS: all five close/favorite palettes resolve hover, focus, active, selected and disabled combinations'
+);
+
+const warningColors = {
+    dark: ['#ef6464', '#ff6464', '#d94141', '#e5484d'],
+    light: ['#b62343', '#c92c36', '#d94141', '#e5484d'],
+    pink: ['#b62343', '#b62343', '#b62343', '#b62343'],
+    halloween: ['#ff9696', '#ff9696', '#ff9696', '#ff9696'],
+    neon: ['#ff9db4', '#ff9db4', '#ff9db4', '#ff9db4'],
+};
+for (const id of ids) {
+    const [unsubscribe, error, failure, badge] = warningColors[id];
+    for (const states of [[], ['hover'], ['focus'], ['active'], ['hover', 'focus', 'active']]) {
+        assert.equal(
+            buttonColors(id, ['pingoose-clear-button', 'pingoose-agenda-unsubscribe'], states)
+                .color,
+            unsubscribe
+        );
+        assert.equal(
+            buttonColors(id, ['pingoose-chat-status', 'pingoose-chat-status-err'], states).color,
+            error
+        );
+        assert.equal(
+            buttonColors(id, ['pingoose-maintenance-failure'], states)['background-color'],
+            failure
+        );
+        assert.equal(buttonColors(id, ['pingoose-chat-badge'], states)['background-color'], badge);
+    }
+}
+console.log(
+    'PASS: unsubscribe, error, maintenance failure and unread badge retain their warning colors'
+);

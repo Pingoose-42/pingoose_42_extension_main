@@ -86,22 +86,36 @@ const event = (type, y = 300, options = {}) => ({
     get_state: () => options.state ?? 1,
     get_key_symbol: () => options.key ?? 27,
 });
-function fixture(settings = new Settings(), key = 'main-panel-height') {
+function fixture(settings = new Settings(), key = 'main-panel-height', extra = {}) {
     const actor = new Actor({ width: 400, height: 300 });
     actor.transform_stage_point = (x, y) => [true, x, y];
     const viewport = {
+        content: extra.content || actor,
         fixed: false,
+        natural: 300,
+        dynamic: 100,
+        minimum: 180,
         heights: [],
         restores: 0,
-        minimumHeight: () => 180,
-        apply(height) {
+        naturalHeight() {
+            return this.natural;
+        },
+        dynamicHeight() {
+            return this.dynamic;
+        },
+        minimumHeight() {
+            return this.minimum;
+        },
+        apply(height, natural = false) {
             this.fixed = true;
+            this.naturalMode = natural;
             this.heights.push(height);
             actor.height = height;
         },
         restore() {
             if (this.fixed) {
                 this.fixed = false;
+                this.naturalMode = false;
                 this.restores++;
                 actor.height = 300;
             }
@@ -110,7 +124,7 @@ function fixture(settings = new Settings(), key = 'main-panel-height') {
     const menu = new Signals();
     menu.isOpen = true;
     const bounds = { bottom: false, scale: 1, maximum: 800 };
-    const options = { menu, ready: () => true, bounds: () => bounds };
+    const options = { menu, ready: () => true, bounds: () => bounds, ...extra };
     const resize = new Resize(actor, viewport, settings, key, options);
     return { actor, viewport, menu, bounds, resize, settings };
 }
@@ -153,6 +167,18 @@ assert.equal(
 flush();
 assert.deepEqual(f.settings.writes, [['main-panel-height', 420]]);
 assert.equal(stage.grabs.at(-1).dismissed, true);
+
+f.viewport.dynamic = 180;
+f.actor.emit('queue-relayout');
+flush();
+assert.equal(f.actor.height, 500, 'opening an inner panel grows around the chosen reading area');
+f.actor.emit('queue-relayout');
+flush();
+assert.equal(f.actor.height, 500, 'repeated relayout does not accumulate growth');
+f.viewport.dynamic = 100;
+f.resize.refresh();
+flush();
+assert.equal(f.actor.height, 420, 'closing the panel restores the selected baseline');
 
 f.resize.capture(event('BUTTON_PRESS', 420));
 f.resize.dragEvent(event('MOTION', 600));
@@ -205,6 +231,95 @@ assert.equal(bottom.actor.height, 350, 'bottom anchor grows upward using actor s
 bottom.resize.dragEvent(event('BUTTON_RELEASE', -100));
 assert.equal(f.settings.get_int('main-panel-height'), 0);
 assert.equal(f.settings.get_int('chat-panel-height'), 350);
+
+bottom.viewport.dynamic = 150;
+bottom.resize.refresh();
+flush();
+assert.equal(bottom.actor.height, 400);
+bottom.resize.capture(event('BUTTON_PRESS', 0));
+bottom.resize.dragEvent(event('MOTION', -100));
+flush();
+bottom.resize.dragEvent(event('BUTTON_RELEASE', -100));
+assert.equal(bottom.settings.get_int('chat-panel-height'), 450);
+bottom.viewport.dynamic = 100;
+bottom.resize.refresh();
+flush();
+assert.equal(bottom.actor.height, 400, 'dragging with a form open rebases the saved total once');
+bottom.viewport.minimum = 230;
+bottom.resize.capture(event('BUTTON_PRESS', 0));
+bottom.resize.dragEvent(event('MOTION', 1000));
+flush();
+assert.equal(bottom.actor.height, 230, 'dragging cannot shrink below the live content minimum');
+bottom.resize.dragEvent(event('BUTTON_RELEASE', 1000));
+
+const automatic = fixture();
+automatic.bounds.maximum = 250;
+automatic.resize.refresh();
+flush();
+assert.equal(automatic.actor.height, 250);
+assert.equal(automatic.viewport.naturalMode, true, 'automatic content still respects work area');
+automatic.bounds.maximum = 800;
+automatic.resize.refresh();
+flush();
+assert.equal(automatic.viewport.fixed, false, 'larger work area restores natural layout');
+const openedSettings = new Settings();
+openedSettings.values['main-panel-height'] = 420;
+const opened = fixture(openedSettings);
+opened.viewport.dynamic = 180;
+flush();
+assert.equal(opened.actor.height, 420, 'initially open forms do not apply growth twice');
+opened.viewport.dynamic = 200;
+opened.resize.refresh();
+flush();
+assert.equal(opened.actor.height, 440);
+opened.bounds.maximum = 200;
+opened.resize.refresh();
+flush();
+assert.equal(opened.actor.height, 200);
+opened.bounds.maximum = 800;
+opened.resize.refresh();
+flush();
+assert.equal(opened.actor.height, 440, 'screen clipping does not overwrite the content baseline');
+automatic.resize.destroy();
+opened.resize.destroy();
+
+const chatActor = new Actor({ height: 350 }),
+    favoritesContent = new Actor();
+const favorites = fixture(new Settings(), null, {
+    baseActor: chatActor,
+    content: favoritesContent,
+});
+flush();
+assert.equal(favorites.actor.height, 350, 'favorites initially follow the chat height');
+favorites.viewport.dynamic = 140;
+favoritesContent.emit('queue-relayout');
+flush();
+assert.equal(
+    favorites.actor.height,
+    390,
+    'favorites input grows its panel without shrinking the list'
+);
+chatActor.height = 400;
+chatActor.emit('notify::allocation');
+flush();
+assert.equal(
+    favorites.actor.height,
+    440,
+    'chat size changes preserve independent favorite input growth'
+);
+favorites.viewport.dynamic = 100;
+favoritesContent.emit('queue-relayout');
+flush();
+assert.equal(favorites.actor.height, 400);
+assert.equal(
+    favorites.resize.capture(event('BUTTON_PRESS', 400)),
+    false,
+    'following panel does not expose an unrelated drag setting'
+);
+favoritesContent.emit('destroy');
+assert.equal(favorites.resize.destroyed, true);
+assert.equal(chatActor.signals.size, 0, 'destroying the content disconnects its height source');
+assert.equal(favoritesContent.signals.size, 0);
 bottom.resize.capture(event('BUTTON_PRESS', 0));
 bottom.bounds.scale = 1;
 bottom.resize.dragEvent(event('MOTION', -50));

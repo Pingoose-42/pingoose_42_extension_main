@@ -37,6 +37,7 @@ var Controller = class Controller {
         );
         this._mainResize = this._addResize(this._mainActor, {
             key: 'main-panel-height',
+            content: main,
         });
         const environmentChanged = () => {
             for (const resize of this._resizers.values()) resize.cancel();
@@ -103,7 +104,7 @@ var Controller = class Controller {
             frame,
             sizing.scroll,
             sizing.onAutomatic,
-            panel
+            sizing.content || panel
         );
         const resize = new Me.imports.ui.panelResize.Controller(
             frame,
@@ -112,6 +113,7 @@ var Controller = class Controller {
             sizing.key,
             {
                 menu: this._indicator.menu,
+                baseActor: sizing.baseActor,
                 bounds: (actor) => this._resizeBounds(actor),
                 ready: () =>
                     Math.abs(this._indicator.sideColumns.translation_y) < 0.5 &&

@@ -21,8 +21,10 @@ var ChatPanel = class ChatPanel {
         this._settings = imports.misc.extensionUtils.getSettings();
         this._blocked = this._settings.get_strv('blocked-chat-seats');
         this._expanded = this._settings.get_boolean('expand-chat');
+        this._appearance = new Me.imports.ui.chatAppearance.Controller(this._settings);
         this._buildChat();
         this._favorites = new Me.imports.ui.favorites.Panel(this);
+        this._appearance.track(this._favorites.entry, 'entry');
         this.sync();
         this._settingsSignal = this._settings.connect('changed', (_settings, key) => {
             this.sync();
@@ -198,6 +200,7 @@ var ChatPanel = class ChatPanel {
     }
 
     destroy() {
+        this._appearance?.destroy();
         this._attachments?.destroy();
         this.connection.destroy();
         this._indicator.menu.disconnect(this._menuSignal);
@@ -319,6 +322,7 @@ var ChatPanel = class ChatPanel {
         });
         root.add_child(this.connection.row);
         root.add_child(this.connection.feedback);
+        this._appearance.track(this.connection.ui.peerEntry, 'entry');
 
         const scroll = new St.ScrollView({
             x_expand: true,
@@ -332,6 +336,7 @@ var ChatPanel = class ChatPanel {
             style_class: 'pingoose-chat-log',
         });
         scroll.add_actor(ui.log);
+        this._appearance.track(scroll, 'log');
         root.add_child(scroll);
         // Follow new messages only while the view is already at the bottom.
         const adjustment = (ui.adjustment = scroll.vscroll.adjustment);
@@ -349,6 +354,7 @@ var ChatPanel = class ChatPanel {
             style_class: 'pingoose-chat-entry',
         });
         ui.entry.clutter_text.max_length = 1000;
+        this._appearance.track(ui.entry, 'entry');
         ui.entry.clutter_text.set_selectable(true);
         ui.entry.clutter_text.reactive = true;
         // Forward only padding clicks; glyph events already reach Clutter.Text.
@@ -375,6 +381,7 @@ var ChatPanel = class ChatPanel {
             })
         );
         this._attachments = new Me.imports.ui.chatAttachments.Controller({
+            appearance: this._appearance,
             menu: indicator.menu,
             getTarget: () => ({
                 service: this._chat,
@@ -575,6 +582,7 @@ var ChatPanel = class ChatPanel {
             x_align: align,
             style_class: `pingoose-chat-bubble pingoose-chat-bubble-${out ? 'out' : 'in'}`,
         });
+        this._appearance?.track(bubble, out ? 'outgoing' : 'incoming');
         if (entry.kind === 'image') bubble.add_child(this._attachments.preview(entry));
         else {
             // Plain text only: peer input must never be parsed as Pango markup.

@@ -21,10 +21,11 @@ function wrapped(text, style_class) {
 }
 
 var Controller = class Controller {
-    constructor({ menu, getTarget, onPreviewReady }) {
+    constructor({ menu, getTarget, onPreviewReady, appearance = null }) {
         this.menu = menu;
         this.getTarget = getTarget;
         this.onPreviewReady = onPreviewReady;
+        this.appearance = appearance;
         this.pending = null;
         this._closingForChooser = null;
         this._destroyed = false;
@@ -209,6 +210,7 @@ var Controller = class Controller {
             style_class: 'pingoose-chat-image-preview',
         });
         const record = { entry, frame, ready: false, disposed: false, job: null, queued: false };
+        this.appearance?.track(frame, 'preview');
         this._records.add(record);
         frame.connect('destroy', () => {
             record.disposed = true;

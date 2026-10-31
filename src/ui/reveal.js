@@ -96,7 +96,10 @@ var Reveal = GObject.registerClass(
         }
 
         vfunc_get_preferred_height(forWidth) {
-            const width = this.horizontal ? this.childActor.get_preferred_width(-1)[1] : forWidth;
+            const width =
+                this.horizontal && this.progress !== 1
+                    ? this.childActor.get_preferred_width(-1)[1]
+                    : forWidth;
             const sizes = this.childActor.get_preferred_height(width);
             return this.horizontal ? sizes : sizes.map((size) => Math.round(size * this.progress));
         }
@@ -105,7 +108,13 @@ var Reveal = GObject.registerClass(
             this.set_allocation(box);
             const width = box.get_width();
             const height = box.get_height();
-            const fullWidth = this.horizontal ? this.childActor.get_preferred_width(-1)[1] : width;
+            // Preserve natural width only during motion. Once open, the parent
+            // may assign less than the natural request; using that request here
+            // would place right-side controls beyond this actor's clip.
+            const fullWidth =
+                this.horizontal && this.progress !== 1
+                    ? this.childActor.get_preferred_width(-1)[1]
+                    : width;
             const fullHeight =
                 this.horizontal || this.progress === 1
                     ? height

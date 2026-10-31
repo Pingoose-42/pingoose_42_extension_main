@@ -2,8 +2,8 @@ const { Clutter, St } = imports.gi;
 const Util = imports.misc.util;
 const Size = imports.misc.extensionUtils.getCurrentExtension().imports.models.panelSize;
 
-// The menu keeps its original box and menu-item parents. Only the outside viewport
-// scrolls when a custom height is selected; its overlay bar never changes the width.
+// The menu keeps its original box and menu-item parents. An outside viewport
+// handles screen overflow without changing the width or hiding fixed controls.
 function mainViewport(box) {
     const scroll = new St.ScrollView({
         reactive: true,
@@ -64,15 +64,34 @@ var Viewport = class Viewport {
     }
 
     minimumHeight() {
-        return this.scroll ? this.chromeHeight() + Size.MINIMUM_VIEWPORT : 180;
+        return this.scroll ? this.chromeHeight() + Size.MINIMUM_VIEWPORT : this.naturalHeight();
     }
 
-    apply(height) {
+    dynamicHeight() {
+        // Lists/logs keep their manually chosen reading area. Headers, forms
+        // and Reveal rows grow around it instead of taking its space away.
+        return this.scroll ? this.chromeHeight() : this.naturalHeight();
+    }
+
+    naturalHeight() {
+        if (this.scroll) {
+            const node = this.content.get_theme_node();
+            const width = node.adjust_for_width(this.content.width || this.actor.width);
+            return this.chromeHeight() + this.scroll.get_preferred_height(width)[1];
+        }
+        const node = this.actor.get_theme_node();
+        const width = node.adjust_for_width(this.actor.width);
+        const height = this.content.get_preferred_height(width)[1];
+        return Math.ceil(node.adjust_preferred_height(height, height)[1]);
+    }
+
+    apply(height, natural = false) {
         const first = !this.fixed;
         this.fixed = true;
+        this.naturalMode = natural;
         if (this.scroll) {
             const chrome = this.chromeHeight();
-            const overflow = height < chrome + Size.MINIMUM_VIEWPORT;
+            const overflow = natural || height < chrome + Size.MINIMUM_VIEWPORT;
             const changedMode = overflow !== this.overflow;
             if (changedMode) {
                 this.overflow = overflow;
@@ -109,6 +128,7 @@ var Viewport = class Viewport {
     restore(notify = true) {
         if (!this.fixed) return;
         this.fixed = false;
+        this.naturalMode = false;
         this.overflow = undefined;
         this.actor.height = -1;
         if (this.scroll) {

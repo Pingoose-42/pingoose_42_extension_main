@@ -167,6 +167,49 @@ assert.deepEqual(
     [100, 100],
     'side widths stay on the pixel grid'
 );
+// A horizontal box may distribute a width between a child's minimum and
+// natural requests. A fully open Reveal must use that allocation, or controls
+// placed at the child's natural right edge end up outside the pick/paint clip.
+side.childActor.get_preferred_width = () => [360, 392];
+let measuredWidth;
+side.childActor.get_preferred_height = (width) => {
+    measuredWidth = width;
+    return [200, width < 392 ? 520 : 500];
+};
+side.childActor.allocate = (box) => {
+    side.childActor.box = box;
+    // Right-aligned header close and chip-row favorite controls, with the
+    // panel's 16px right padding. Both rows stay inside the scrolled content.
+    side.childActor.buttons = [26, 28].map((width) => ({
+        x1: box.get_width() - 16 - width,
+        x2: box.get_width() - 16,
+    }));
+};
+side.progress = 1;
+side.vfunc_allocate(new Box(360, 520));
+for (const button of side.childActor.buttons) {
+    const picked = (fraction) => {
+        const x = button.x1 + (button.x2 - button.x1) * fraction;
+        return x >= 0 && x < side.box.get_width();
+    };
+    assert.equal(picked(0.25), true, 'left half of each right-side control stays pickable');
+    assert.equal(picked(0.75), true, 'right half of each right-side control stays pickable');
+}
+assert.equal(side.childActor.box.get_width(), 360);
+assert.deepEqual(Array.from(side.vfunc_get_preferred_height(360)), [200, 520]);
+assert.equal(measuredWidth, 360, 'expanded height measurement uses the assigned width');
+side.progress = 0.5;
+side.vfunc_get_preferred_height(180);
+assert.equal(measuredWidth, 392, 'animation still measures full natural content width');
+side.vfunc_allocate(new Box(180, 520));
+assert.equal(side.childActor.box.get_width(), 392, 'animation preserves natural content width');
+side.progress = 1;
+side.vfunc_allocate(new Box(392, 520));
+assert.equal(
+    side.childActor.box.get_width(),
+    392,
+    'unconstrained natural layout remains unchanged'
+);
 section.progress = 0.333;
 assert.deepEqual(
     Array.from(section.vfunc_get_preferred_height(300)),

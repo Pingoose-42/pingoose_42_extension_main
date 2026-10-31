@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { Actor, moduleExport } = require('./helpers.cjs');
+const { Actor, Reveal, moduleExport } = require('./helpers.cjs');
 const Size = moduleExport('models/panelSize.js', '({ MINIMUM_VIEWPORT })');
 class Scroll extends Actor {
     constructor(props) {
@@ -48,6 +48,12 @@ const menuBox = new Actor({ style_class: 'popup-menu-content pingoose-main-panel
 const menuItem = new Actor();
 menuBox.add_child(menuItem);
 const main = api.mainViewport(menuBox);
+main.get_theme_node = () => ({
+    adjust_for_width: (width) => width - 20,
+    adjust_preferred_height: (min, natural) => [min + 20, natural + 20],
+});
+let mainContentHeight = 80;
+menuBox.get_preferred_height = () => [40, mainContentHeight];
 assert.equal(menuItem.parent, menuBox, 'menu item parent survives viewport wrapping');
 assert.equal(menuBox.parent, main);
 assert.equal(main.overlay_scrollbars, true);
@@ -59,7 +65,8 @@ assert.equal(
 assert.deepEqual(main.policy, [0, 0]);
 assert.match(main.style_class, /popup-menu-content/);
 assert.doesNotMatch(menuBox.style_class, /popup-menu-content/);
-const mainSize = new api.Viewport(main);
+const mainSize = new api.Viewport(main, null, null, menuBox);
+assert.equal(mainSize.minimumHeight(), 100, 'main minimum follows its complete natural controls');
 mainSize.apply(100);
 assert.deepEqual(
     main.explicitHeights,
@@ -67,6 +74,9 @@ assert.deepEqual(
     'a matching natural allocation still becomes explicitly fixed'
 );
 assert.equal(main.enable_mouse_scrolling, true);
+mainContentHeight = 140;
+assert.equal(mainSize.dynamicHeight(), 160, 'main measurement ignores the fixed outer height');
+assert.equal(mainSize.minimumHeight(), 160);
 mainSize.revealFocus(main);
 assert.equal(focused.length, 0, 'scroll root focus does not call helper on itself');
 mainSize.revealFocus(menuItem);
@@ -84,6 +94,7 @@ root.get_theme_node = () => ({
 const header = new Actor();
 header.get_preferred_height = () => [24, 24];
 const scroll = new Scroll({ height: 200 });
+scroll.get_preferred_height = () => [64, 200];
 scroll.style = 'padding-right: 2px;';
 const input = new Actor();
 input.get_preferred_height = () => [28, 28];
@@ -108,9 +119,11 @@ assert.deepEqual(
 assert.deepEqual(frame.policy, [0, 0], 'normal side resize changes inner viewport only');
 assert.match(scroll.style, /max-height: 4096px/);
 header.get_preferred_height = () => [48, 48];
-size.apply(300);
-assert.equal(scroll.height, 176, 'dynamic header growth takes space from list, not controls');
-assert.equal(root.height, 300);
+assert.equal(size.dynamicHeight(), 124);
+size.apply(324);
+assert.equal(scroll.height, 200, 'dynamic header growth preserves the manually chosen list area');
+assert.equal(root.height, 324);
+assert.equal(size.naturalHeight(), 324);
 size.apply(90);
 assert.equal(frame.height, 90);
 assert.equal(root.height, -1);
@@ -135,6 +148,62 @@ assert.equal(resets, 2, 'natural measurement resumes on overflow and automatic r
 size.apply(400);
 size.restore(false);
 assert.equal(resets, 2, 'teardown does not restart owner timers');
+size.apply(250, true);
+assert.equal(root.height, -1, 'automatic screen overflow keeps child content at natural size');
+assert.equal(scroll.height, -1);
+assert.equal(size.naturalHeight(), 324, 'screen clipping does not become the new natural height');
+assert.equal(size.minimumHeight(), 188);
+size.restore(false);
+
+let favoriteSizing;
+const chatRoot = new Actor();
+const Favorites = moduleExport('ui/favorites.js', 'Panel', {
+    imports: {
+        gi: {
+            Clutter: { ActorAlign: { CENTER: 0, FILL: 1 } },
+            Gio: { FileIcon: class {}, File: { new_for_path: () => ({}) } },
+            St: {
+                BoxLayout: Actor,
+                Label: Actor,
+                Button: Actor,
+                Entry: Actor,
+                Icon: Actor,
+                Widget: Actor,
+                ScrollView: Scroll,
+                PolicyType: { NEVER: 0, AUTOMATIC: 1 },
+            },
+        },
+        misc: {
+            extensionUtils: {
+                getCurrentExtension: () => ({
+                    path: '/fixture',
+                    imports: {
+                        models: { featureFlags: {} },
+                        services: { favoriteCache: { read: () => [] } },
+                        ui: { reveal: { Reveal }, spinner: { create: () => new Actor() } },
+                    },
+                }),
+            },
+        },
+    },
+});
+Favorites.prototype.render = () => {};
+const favorites = new Favorites({
+    _settings: { get_boolean: () => false, get_string: () => '[]' },
+    _chatUi: { root: chatRoot },
+    _indicator: {
+        addPanel: (panel, sizing) => {
+            favoriteSizing = { panel, sizing };
+        },
+    },
+});
+assert.equal(favoriteSizing.panel, favorites.root);
+assert.equal(favoriteSizing.sizing.baseActor, chatRoot);
+assert.equal(favoriteSizing.sizing.scroll, favorites.scroll);
+assert(
+    favorites.root.get_children().includes(favorites.scroll),
+    'all favorite controls exist before sizing is connected'
+);
 
 let measureLater;
 const ProjectPanel = moduleExport('ui/projectPanel.js', 'ProjectPanel', {

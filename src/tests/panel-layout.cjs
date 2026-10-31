@@ -216,6 +216,7 @@ const Layout = loadController('ui/layout.js', {
     global: { display: new Signals(), stage },
 });
 const layout = new Layout(host, { get_int: () => 0 });
+assert.equal(resizes[0].viewport.content, hostMain, 'main sizing measures the original menu box');
 assert.equal(inputMethod.menu, host.menu, 'layout owns the input-method popup integration');
 const side = new Actor();
 host.addPanel(side);
@@ -249,6 +250,17 @@ const resize = host.addPanel(sizedPanel, { key: 'chat-panel-height', scroll: new
 assert.equal(resize.key, 'chat-panel-height');
 assert.equal(resize.viewport.content, sizedPanel);
 assert.equal(resize.actor.get_children()[0], sizedPanel);
+const favoritesPanel = new Actor();
+const favoriteResize = host.addPanel(favoritesPanel, {
+    scroll: new Actor(),
+    baseActor: sizedPanel,
+});
+assert.equal(favoriteResize.options.baseActor, sizedPanel);
+assert.equal(
+    favoriteResize.key,
+    undefined,
+    'following panels do not borrow a persisted height key'
+);
 host.setPanelVisible(sizedPanel, false);
 assert.equal(resize.cancelled, true, 'closing a side panel cancels its resize immediately');
 layoutSignals.findIndexForActor = () => 0;

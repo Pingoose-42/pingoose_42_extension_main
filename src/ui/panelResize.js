@@ -20,15 +20,23 @@ var Controller = class Controller {
         // Clutter 42 delivers grabbed pointer events here, not in capture phase.
         this._connect(actor, 'event', (_actor, event) => this.dragEvent(event));
         this._connect(actor, 'queue-relayout', () => this.refresh());
+        if (viewport.content !== actor) {
+            this._connect(viewport.content, 'queue-relayout', () => this.refresh());
+            this._connect(viewport.content, 'destroy', () => this.destroy(false));
+        }
+        if (options.baseActor)
+            this._connect(options.baseActor, 'notify::allocation', () => this.refresh());
         this._connect(actor, 'notify::mapped', () => {
             if (!actor.mapped) this.cancel();
             else this.refresh();
         });
         this._connect(actor, 'destroy', () => this.destroy(false));
-        this._connect(settings, `changed::${key}`, () => {
-            this.cancel();
-            this.refresh();
-        });
+        if (key)
+            this._connect(settings, `changed::${key}`, () => {
+                this.reference = actor.mapped && actor.width > 0 ? viewport.dynamicHeight() : null;
+                this.cancel();
+                this.refresh();
+            });
         this._connect(options.menu, 'open-state-changed', (_menu, open) => {
             if (!open) this.cancel();
             else this.refresh();
@@ -41,7 +49,11 @@ var Controller = class Controller {
     }
 
     get automatic() {
-        return this.preview === null && this.settings.get_int(this.key) === 0;
+        return (
+            !this.options.baseActor &&
+            this.preview === null &&
+            this.settings.get_int(this.key) === 0
+        );
     }
 
     get naturalContent() {
@@ -51,10 +63,12 @@ var Controller = class Controller {
     refresh() {
         if (this.destroyed || this.applying) return;
         if (this.automatic) {
-            this.applying = true;
-            this.viewport.restore();
-            this.applying = false;
-            return;
+            this.reference = null;
+            if (this.viewport.fixed && !this.viewport.naturalMode) {
+                this.applying = true;
+                this.viewport.restore();
+                this.applying = false;
+            }
         }
         if (this.pending || !this.actor.mapped) return;
         this.pending = Meta.later_add(Meta.LaterType.BEFORE_REDRAW, () => {
@@ -66,16 +80,28 @@ var Controller = class Controller {
 
     apply() {
         if (this.destroyed || !this.actor.mapped || this.actor.width <= 0) return;
-        const height = this.preview ?? this.settings.get_int(this.key);
-        if (!height) return;
         const bounds = this.options.bounds(this.actor);
         this.applying = true;
-        this.viewport.apply(Size.clamp(height, this.viewport.minimumHeight(), bounds.maximum));
+        if (this.automatic) {
+            if (this.viewport.naturalHeight() > bounds.maximum)
+                this.viewport.apply(Math.max(1, Math.floor(bounds.maximum)), true);
+            else this.viewport.restore();
+        } else {
+            const dynamic = this.viewport.dynamicHeight();
+            this.reference ??= dynamic;
+            const height =
+                this.preview ??
+                (this.options.baseActor?.height ?? this.settings.get_int(this.key)) +
+                    dynamic -
+                    this.reference;
+            this.viewport.apply(Size.clamp(height, this.viewport.minimumHeight(), bounds.maximum));
+        }
         this.applying = false;
     }
 
     edge(event) {
-        if (!this.options.menu.isOpen || !this.actor.mapped || !this.options.ready()) return false;
+        if (!this.key || !this.options.menu.isOpen || !this.actor.mapped || !this.options.ready())
+            return false;
         const [x, y] = event.get_coords();
         const [ok, localX, localY] = this.actor.transform_stage_point(x, y);
         return (
@@ -197,8 +223,12 @@ var Controller = class Controller {
         this.preview = null;
         drag.grab.dismiss();
         this.setCursor(false);
-        if (commit && drag.changed && value !== drag.initial)
-            this.settings.set_int(this.key, value);
+        if (commit && drag.changed) {
+            // A drag chooses the actual current height, including any open form.
+            // Rebase once; following relayouts only add changes after this point.
+            this.reference = this.viewport.dynamicHeight();
+            if (value !== drag.initial) this.settings.set_int(this.key, value);
+        }
         this.refresh();
     }
 
