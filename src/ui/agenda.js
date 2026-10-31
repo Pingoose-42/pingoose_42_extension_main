@@ -1,6 +1,7 @@
 const { Clutter, GLib, Meta, Pango, St } = imports.gi;
 const PopupMenu = imports.ui.popupMenu;
-const Agenda = imports.misc.extensionUtils.getCurrentExtension().imports.models.agenda;
+const Me = imports.misc.extensionUtils.getCurrentExtension();
+const Agenda = Me.imports.models.agenda;
 
 var Controller = class Controller {
     constructor(indicator, bridge, settings, options = {}) {
@@ -223,15 +224,17 @@ var Controller = class Controller {
             visible: !!expanded,
             style_class: 'pingoose-agenda-details',
         });
-        box.add_child(details);
+        const reveal = new Me.imports.ui.reveal.Reveal(details);
+        box.add_child(reveal);
+        reveal.setExpanded(!!expanded, false);
 
         more.connect('clicked', () => {
             this._agendaExpanded ||= new Set();
             if (this._agendaExpanded.has(row.id)) this._agendaExpanded.delete(row.id);
             else this._agendaExpanded.add(row.id);
-            details.visible = this._agendaExpanded.has(row.id);
+            reveal.setExpanded(this._agendaExpanded.has(row.id));
             more.style_class =
-                'pingoose-clear-button' + (details.visible ? ' pingoose-toggle-active' : '');
+                'pingoose-clear-button' + (reveal.expanded ? ' pingoose-toggle-active' : '');
         });
 
         this._renderAgendaDetails(row, details, adjustment);

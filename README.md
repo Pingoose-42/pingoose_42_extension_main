@@ -150,6 +150,8 @@ Settings → 42 Services에서 HTTPS 사이트를 최대 30개까지 추가·수
 | Automatically delete past calendar events | 기본 꺼짐. 켤 때 Yes/No 확인창을 표시하며, Yes를 누른 뒤 동기화 시 종료 시각이 지난 일정만 자동 삭제합니다. 진행 중인 일정은 유지하며, 동기화가 꺼져 있으면 삭제하지 않습니다. 꺼두면 지난 일정은 Management에서 직접 삭제할 때까지 유지됩니다. |
 | Auto Update | 켜짐. 새 커밋 발견 시 자동 설치. 끄면 Yes/No로 확인 |
 | Auto-close side panels | 꺼짐. 켜면 메뉴를 닫을 때 프로젝트·서비스·채팅의 옆 패널도 닫음 |
+| Panel animations | 기본 켜짐. 메인패널·섹션·사이드패널을 부드럽게 여닫습니다. 시스템 애니메이션이 꺼져 있으면 즉시 전환합니다. |
+| Animation duration (100–500 ms) | 기본 200ms. 값이 작을수록 빠르게 전환하며 Panel animations를 끄면 입력이 비활성화됩니다. |
 | Agenda Reset | 숨긴 아젠다 복원 및 현재 목록 재조회. 구독·피드백 상태는 변경하지 않음 |
 | Logout Intra | Intra 세션 종료 및 열린 관련 창·채팅 정리 |
 | Reset All Data | 확인 후 로컬 데이터 삭제, 설정 기본값 복원 및 로그아웃. 서버 프로젝트·슬롯은 변경하지 않음 |

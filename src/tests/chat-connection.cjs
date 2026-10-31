@@ -24,7 +24,10 @@ const chat = {
 const Me = {
     imports: {
         services: { chat: { SEAT: /^c\d+r\d+s\d+$/ } },
-        ui: { spinner: { create: () => new Actor() } },
+        ui: {
+            reveal: { Reveal: require('./helpers.cjs').Reveal },
+            spinner: { create: () => new Actor() },
+        },
     },
 };
 const Connection = controller('ui/chatConnection.js', {

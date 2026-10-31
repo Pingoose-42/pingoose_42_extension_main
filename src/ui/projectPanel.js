@@ -16,7 +16,7 @@ var ProjectPanel = class ProjectPanel {
             y_align: Clutter.ActorAlign.START,
             style_class: 'pingoose-chat-panel pingoose-project-panel',
         });
-        indicator.sideColumns.insert_child_at_index(this.root, 0);
+        indicator.addPanel(this.root);
         const header = new St.BoxLayout({ style_class: 'pingoose-chat-header' });
         this.title = new St.Label({
             text: 'Project',
@@ -64,7 +64,8 @@ var ProjectPanel = class ProjectPanel {
             visible: false,
             style_class: 'pingoose-project-note',
         });
-        this.root.add_child(this.confirmation);
+        this.confirmationReveal = new Me.imports.ui.reveal.Reveal(this.confirmation);
+        this.root.add_child(this.confirmationReveal);
         this.add = this.button('Add Note', () => {
             this.editing = {};
             this.renderEditor();
@@ -78,7 +79,8 @@ var ProjectPanel = class ProjectPanel {
                 this.renderEditor();
             },
         });
-        this.root.add_child(this.input.root);
+        this.inputReveal = new Me.imports.ui.reveal.Reveal(this.input.root);
+        this.root.add_child(this.inputReveal);
         this.status = new St.Label({ text: '', style_class: 'pingoose-card-time' });
         this.status.clutter_text.line_wrap = true;
         this.status.hide();
@@ -106,7 +108,7 @@ var ProjectPanel = class ProjectPanel {
             if (this.refreshTimer) GLib.source_remove(this.refreshTimer);
             this.refreshTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
                 this.refreshTimer = 0;
-                if (this.project && this.root.visible) this.renderList();
+                if (this.project && this.visible) this.renderList();
                 return GLib.SOURCE_REMOVE;
             });
         });
@@ -171,17 +173,17 @@ var ProjectPanel = class ProjectPanel {
         const buttons = new St.BoxLayout({ style_class: 'pingoose-chat-input-row' });
         buttons.add_child(
             this.button('Cancel', () => {
-                this.confirmation.hide();
+                this.confirmationReveal.setExpanded(false);
             })
         );
         buttons.add_child(
             this.button('Delete', () => {
-                this.confirmation.hide();
+                this.confirmationReveal.setExpanded(false);
                 action();
             })
         );
         this.confirmation.add_child(buttons);
-        this.confirmation.show();
+        this.confirmationReveal.setExpanded(true);
     }
     itemMenu(container, edit, remove) {
         const actions = new St.BoxLayout({
@@ -190,19 +192,20 @@ var ProjectPanel = class ProjectPanel {
             x_align: Clutter.ActorAlign.END,
             style_class: 'pingoose-chat-input-row',
         });
+        const actionsReveal = new Me.imports.ui.reveal.Reveal(actions);
         actions.add_child(
             this.button('Edit', () => {
-                actions.hide();
+                actionsReveal.setExpanded(false);
                 edit();
             })
         );
         actions.add_child(
             this.button('Delete', () => {
-                actions.hide();
+                actionsReveal.setExpanded(false);
                 remove();
             })
         );
-        container.add_child(actions);
+        container.add_child(actionsReveal);
         const toggle = new St.Button({
             label: '⋮',
             accessible_name: 'Item options',
@@ -212,7 +215,7 @@ var ProjectPanel = class ProjectPanel {
             style_class: 'pingoose-note-options',
         });
         toggle.connect('clicked', () => {
-            actions.visible = !actions.visible;
+            actionsReveal.setExpanded(!actionsReveal.expanded);
         });
         return toggle;
     }
@@ -249,7 +252,7 @@ var ProjectPanel = class ProjectPanel {
             });
     }
     open(project) {
-        this.confirmation.hide();
+        this.confirmationReveal.setExpanded(false);
         this.capture();
         if (
             this.expanded &&
@@ -273,7 +276,7 @@ var ProjectPanel = class ProjectPanel {
         this.sync();
     }
     switchTab(kind) {
-        this.confirmation.hide();
+        this.confirmationReveal.setExpanded(false);
         this.capture();
         this.kind = kind;
         this.editing = this.drafts.get(this.key()) || null;
@@ -281,23 +284,27 @@ var ProjectPanel = class ProjectPanel {
         this.renderEditor();
     }
     sync() {
-        this.root.visible = !!this.project && this.expanded && !this.indicator.loginOnly;
-        this.indicator.syncProjectButtons?.(this.root.visible ? this.project?.slug : null);
+        this.visible = !!this.project && this.expanded && !this.indicator.loginOnly;
+        this.indicator.setPanelVisible(this.root, this.visible);
+        this.indicator.syncProjectButtons?.(this.visible ? this.project?.slug : null);
         this.indicator.syncPanelLayout?.();
     }
     reset() {
-        this.confirmation.hide();
+        this.confirmationReveal.setExpanded(false);
         this.drafts.clear();
         this.project = null;
         this.editing = null;
         this.expanded = false;
         this.input.clear();
+        this.inputReveal.setExpanded(false, false);
         this.list.destroy_all_children();
         this.renderKey = null;
         this.sync();
     }
     renderEditor() {
         this.input.update(this.kind, this.editing);
+        this.input.root.show();
+        this.inputReveal.setExpanded(!!this.editing);
         this.add.visible = !this.editing;
         this.add.label = this.kind === 'todo' ? 'Add TODO List' : 'Add Note';
         this.status.text = '';

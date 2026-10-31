@@ -73,10 +73,11 @@ var ChatPanel = class ChatPanel {
             this._updatePanelLabel();
             if (!general && !this._selectedEvaluation) this._expanded = false;
         }
-        this._chatUi.root.visible = active && this._expanded && (general || !!this._chatActive);
+        this._chatUi.visible = active && this._expanded && (general || !!this._chatActive);
+        this._indicator.setPanelVisible(this._chatUi.root, this._chatUi.visible);
         this._updatePanelLabel();
         this._chatUi.toggle.style_class =
-            'pingoose-visit-intra' + (this._chatUi.root.visible ? ' pingoose-toggle-active' : '');
+            'pingoose-visit-intra' + (this._chatUi.visible ? ' pingoose-toggle-active' : '');
         if (this._settings.get_boolean('expand-chat') !== this._expanded)
             this._settings.set_boolean('expand-chat', this._expanded);
         this._favorites?.sync();
@@ -159,7 +160,7 @@ var ChatPanel = class ChatPanel {
             this._chatUi.toggle.get_child(),
             'Cluster Chat',
             count > 5 ? '5+' : count,
-            this._chatUi.root.visible
+            this._chatUi.visible
         );
     }
     reset() {
@@ -217,7 +218,7 @@ var ChatPanel = class ChatPanel {
             style_class: 'pingoose-chat pingoose-chat-panel',
         });
         ui.root = root;
-        indicator.sideColumns.insert_child_at_index(root, 0);
+        indicator.addPanel(root);
         const item = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
         item.remove_all_children();
         item.add_style_class_name('pingoose-overview-item');
@@ -573,7 +574,7 @@ var ChatPanel = class ChatPanel {
             this._indicator.menu.isOpen &&
             !this._indicator.loginOnly &&
             this._expanded &&
-            this._chatUi.root.visible &&
+            this._chatUi.visible &&
             this._chatUi.root.mapped &&
             this._chatActive === key
         );

@@ -35,7 +35,7 @@ var Panel = class Panel {
                 coordinate: Clutter.BindCoordinate.HEIGHT,
             })
         );
-        chat._indicator.sideColumns.insert_child_at_index(this.root, 0);
+        chat._indicator.addPanel(this.root);
         const header = new St.BoxLayout({ style_class: 'pingoose-chat-header' });
         header.add_child(
             new St.Label({
@@ -46,9 +46,9 @@ var Panel = class Panel {
             })
         );
         const add = (this.addToggle = this.button('+', () => {
-            const open = !this.entryRow.visible;
-            this.resetInput();
-            this.entryRow.visible = open;
+            const open = !this.entryReveal.expanded;
+            this.resetInput(false);
+            this._setInputOpen(open);
             if (open) this.entry.grab_key_focus();
         }));
         add.accessible_name = 'Add favorite';
@@ -96,10 +96,6 @@ var Panel = class Panel {
             visible: false,
             style_class: 'pingoose-chat-input-row',
         });
-        this.entryRow.connect('notify::visible', () => {
-            this.addToggle.style_class =
-                'pingoose-chat-add' + (this.entryRow.visible ? ' pingoose-toggle-active' : '');
-        });
         this.entry = new St.Entry({
             hint_text: 'Intra ID',
             can_focus: true,
@@ -122,7 +118,8 @@ var Panel = class Panel {
         this.addButton.set_child(addContent);
         this.entryRow.add_child(this.addButton);
         this.entry.clutter_text.connect('activate', () => this.add());
-        this.root.add_child(this.entryRow);
+        this.entryReveal = new Me.imports.ui.reveal.Reveal(this.entryRow);
+        this.root.add_child(this.entryReveal);
         this.feedback = new St.Label({ text: '', style_class: 'pingoose-chat-connect-error' });
         this.feedback.clutter_text.line_wrap = true;
         this.feedback.hide();
@@ -152,10 +149,14 @@ var Panel = class Panel {
         this.scrollPosition = 0;
         this.render();
     }
-    resetInput() {
+    _setInputOpen(open) {
+        this.entryReveal.setExpanded(open);
+        this.addToggle.style_class = 'pingoose-chat-add' + (open ? ' pingoose-toggle-active' : '');
+    }
+    resetInput(close = true) {
         this.entry.text = '';
         this.feedback.text = '';
-        this.entryRow.hide();
+        if (close) this._setInputOpen(false);
     }
     allowed() {
         return (
@@ -194,15 +195,12 @@ var Panel = class Panel {
             this.timeout = 0;
         }
         this.syncRefresh();
-        this.root.visible = allowed && this.expanded && this.chat._chatUi.root.visible;
+        this.visible = allowed && this.expanded && this.chat._chatUi.visible;
+        this.chat._indicator.setPanelVisible(this.root, this.visible);
         this.chat._chatUi.favorites.visible = allowed;
         this.chat._chatUi.favorites.style_class =
-            'pingoose-chat-add' + (this.root.visible ? ' pingoose-toggle-active' : '');
-        if (this.root.visible)
-            this.chat._indicator.sideColumns.set_child_below_sibling(
-                this.root,
-                this.chat._chatUi.root
-            );
+            'pingoose-chat-add' + (this.visible ? ' pingoose-toggle-active' : '');
+        if (this.visible) this.chat._indicator.placePanelBefore(this.root, this.chat._chatUi.root);
         this.chat._indicator.syncPanelLayout?.();
     }
     setAddBusy(busy) {
@@ -394,7 +392,7 @@ var Panel = class Panel {
             this.save();
             if (item.add) {
                 this.entry.text = '';
-                this.entryRow.hide();
+                this._setInputOpen(false);
                 this.feedback.text = '';
             }
         } else {
@@ -525,9 +523,13 @@ var Panel = class Panel {
                 visible: false,
                 style_class: 'pingoose-chat-input-row',
             });
+            const actionsReveal = new Me.imports.ui.reveal.Reveal(actions);
+            actionsReveal.connect('notify::progress', () => {
+                if (actionsReveal.progress === 1 && index === this.rows.length - 1)
+                    this.revealBottom();
+            });
             const options = this.button('⋮', () => {
-                actions.visible = !actions.visible;
-                if (actions.visible && index === this.rows.length - 1) this.revealBottom();
+                actionsReveal.setExpanded(!actionsReveal.expanded);
             });
             options.visible = options.reactive = options.can_focus = !this.availableOnly;
             options.accessible_name = 'Favorite options';
@@ -594,7 +596,7 @@ var Panel = class Panel {
                 actions.add_child(move);
             }
             actions.add_child(this.button('Remove', () => this.confirmRemove(actions, row.login)));
-            card.add_child(actions);
+            card.add_child(actionsReveal);
             this.list.add_child(card);
         });
     }
@@ -662,10 +664,11 @@ var Panel = class Panel {
         this.timeout = 0;
         this.setAddBusy(false);
         this.entry.text = '';
-        this.entryRow.hide();
+        this._setInputOpen(false);
         this.feedback.text = '';
         this.syncRefresh();
-        this.root.hide();
+        this.visible = false;
+        this.chat._indicator.setPanelVisible(this.root, false);
         this.render();
     }
     destroy() {

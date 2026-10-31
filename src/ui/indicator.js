@@ -3,6 +3,7 @@ const { Clutter, Gio, GLib, GObject, Pango, St } = imports.gi;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 const Me = imports.misc.extensionUtils.getCurrentExtension();
+const Reveal = Me.imports.ui.reveal.Reveal;
 
 function deadlineText(deadline, today = new Date()) {
     if (typeof deadline !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) return '—';
@@ -282,7 +283,11 @@ var Indicator = GObject.registerClass(
             this.slotsItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
             this.slotsItem.remove_all_children();
             this.slotsItem.add_style_class_name('pingoose-scroll-container');
-            this.slotsItem.add_child(slotScroll);
+            this.slotReveal = new Reveal(slotScroll);
+            this.slotReveal.connect('notify::visible', () => {
+                this.slotsItem.visible = this.slotReveal.visible;
+            });
+            this.slotsItem.add_child(this.slotReveal);
             this.menu.addMenuItem(this.slotsItem);
             this.slotsItem.hide();
 
@@ -307,13 +312,14 @@ var Indicator = GObject.registerClass(
             evaluationItem.remove_all_children();
             evaluationItem.add_style_class_name('pingoose-scroll-container');
             const evaluationArea = new St.BoxLayout({ vertical: true, x_expand: true });
+            const evaluationReveal = new Reveal(evaluationScroll);
             this.evaluationToggle = this._sectionToggle(
                 'Evaluation Info',
-                evaluationScroll,
+                evaluationReveal,
                 'expand-evaluations'
             );
             evaluationArea.add_child(this.evaluationToggle);
-            evaluationArea.add_child(evaluationScroll);
+            evaluationArea.add_child(evaluationReveal);
             evaluationItem.add_child(evaluationArea);
             this.evaluationItem = evaluationItem;
             this.menu.addMenuItem(evaluationItem);
@@ -333,9 +339,10 @@ var Indicator = GObject.registerClass(
             this.agendaItem.remove_all_children();
             this.agendaItem.add_style_class_name('pingoose-scroll-container');
             const agendaArea = new St.BoxLayout({ vertical: true, x_expand: true });
-            this.agendaToggle = this._sectionToggle('Agenda', agendaScroll, 'expand-agenda');
+            const agendaReveal = new Reveal(agendaScroll);
+            this.agendaToggle = this._sectionToggle('Agenda', agendaReveal, 'expand-agenda');
             agendaArea.add_child(this.agendaToggle);
-            agendaArea.add_child(agendaScroll);
+            agendaArea.add_child(agendaReveal);
             this.agendaItem.add_child(agendaArea);
             this.menu.addMenuItem(this.agendaItem);
             this.cards = new PopupMenu.PopupMenuSection();
@@ -350,13 +357,14 @@ var Indicator = GObject.registerClass(
             listItem.remove_all_children();
             listItem.add_style_class_name('pingoose-list-container');
             const notificationArea = new St.BoxLayout({ vertical: true, x_expand: true });
+            const notificationReveal = new Reveal(list);
             this.notificationToggle = this._sectionToggle(
                 'Notifications',
-                list,
+                notificationReveal,
                 'expand-notifications'
             );
             notificationArea.add_child(this.notificationToggle);
-            notificationArea.add_child(list);
+            notificationArea.add_child(notificationReveal);
             listItem.add_child(notificationArea);
             this.notificationItem = listItem;
             this.menu.addMenuItem(listItem);
@@ -385,7 +393,7 @@ var Indicator = GObject.registerClass(
                     (button.expanded ? ' pingoose-toggle-active' : '');
                 button.sectionCount = count;
                 button.attentionCount = attention;
-                content.visible = button.expanded;
+                content.setExpanded(button.expanded);
             };
             button.connect('clicked', () => {
                 button.expanded = !button.expanded;

@@ -13,6 +13,9 @@ class Actor {
     remove_all_children() {
         this.children = [];
     }
+    show() {
+        this.visible = true;
+    }
     set_style() {}
     connect(name, cb) {
         this[name] = cb;
@@ -57,7 +60,10 @@ const ctx = {
 ctx.imports.misc = {
     extensionUtils: {
         getCurrentExtension: () => ({
-            imports: { models: { agenda: require('../models/agenda.js') } },
+            imports: {
+                ui: { reveal: { Reveal: require('./helpers.cjs').Reveal } },
+                models: { agenda: require('../models/agenda.js') },
+            },
         }),
     },
 };
@@ -159,10 +165,10 @@ p._renderAgenda();
 const detailsBox = section.items
     .flatMap(all)
     .find((actor) => actor.style_class === 'pingoose-agenda-details');
-assert.equal(detailsBox.visible, false);
+assert.equal(detailsBox.parent.expanded, false);
 const originalCard = section.items[0];
 click('Details');
-assert.equal(detailsBox.visible, true);
+assert.equal(detailsBox.parent.expanded, true);
 assert.equal(section.items[0], originalCard, 'toggling preserves card actors and focus');
 assert(section.items.flatMap(all).some((actor) => actor.text === 'Details from Intra'));
 assert(section.items.flatMap(all).some((actor) => actor.text === 'Registered: 5 / 100'));
@@ -243,7 +249,7 @@ for (const kind of ['event', 'exam']) {
     const feedback = actors.find((actor) => actor.label === 'Write Feedback');
     assert(feedback, 'pending feedback needs a visible action, not only a badge');
     assert.equal(feedback.can_focus, true);
-    assert.equal(details.visible, false);
+    assert.equal(details.parent.expanded, false);
     assert(!all(details).includes(feedback), 'feedback action must not be hidden inside Details');
     assert(!actors.some((actor) => actor.label === 'Visit Agenda Page'));
     click('Write Feedback');

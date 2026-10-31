@@ -70,6 +70,8 @@ Object.assign(panel, {
     addSpinner: {},
     entry: {},
     entryRow: { hide() {} },
+    entryReveal: { setExpanded() {} },
+    addToggle: {},
     feedback: {},
     render() {},
     next() {},

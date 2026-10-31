@@ -11,7 +11,12 @@ var Controller = class Controller {
         this._syncOptionalSectionsCallback = options.onVisibilitySync || (() => {});
         this._onRefreshStateCallback = options.onRefreshState || null;
 
+        this._slotAction = null;
+        this._createError = null;
+        this._actionButtons = [];
         this._slots = [];
+        this._slotsReady = false;
+        this._renderedSlots = null;
         this._slotsExpanded = this._settings?.get_boolean('expand-slots') || false;
         this._slotsBusy = false;
         this._slotsError = null;
@@ -30,8 +35,8 @@ var Controller = class Controller {
             this._visitIntraSignal = this._indicator.visitIntra.connect('clicked', () => {
                 this._slotsExpanded = !this._slotsExpanded;
                 this._settings?.set_boolean('expand-slots', this._slotsExpanded);
-                if (this._slotsExpanded) this._requestSlots('slots:list');
-                else this._renderSlots();
+                if (this._slotsExpanded) this._pollSlotsIfDue();
+                this._renderSlots();
             });
         }
 
@@ -59,16 +64,21 @@ var Controller = class Controller {
     }
 
     onSlotsMessage(message) {
+        const creating = this._slotCreating;
+        this._slotAction = null;
         this._slotsBusy = false;
         if (this._slotCreating && !message.error && message.created > 0) {
-            this._slotCreateExpanded = false;
+            this._setCreatorExpanded(false);
             this._slotDraft = null;
         }
         this._slotCreating = false;
-        if (Array.isArray(message.rows) && message.rows.length <= 1000) {
+        if (Array.isArray(message.rows) && message.rows.length <= 1000 && !message.error) {
             this._slots = message.rows;
+            this._slotsReady = true;
         }
-        this._slotsError = typeof message.error === 'string' ? message.error.slice(0, 200) : null;
+        const error = typeof message.error === 'string' ? message.error.slice(0, 1000) : null;
+        if (creating) this._setCreateError(error);
+        this._slotsError = creating ? null : error;
         this._renderSlots();
         this._sessionSlotResult = message;
         this._finishSessionCheck();
@@ -89,13 +99,30 @@ var Controller = class Controller {
     }
 
     closeEditor() {
-        this._slotCreateExpanded = false;
+        this._setCreateError(null);
+        this._setCreatorExpanded(false, false);
         this._slotDraft = null;
-        this._renderSlots();
+    }
+
+    _setCreatorExpanded(expanded, animate = true) {
+        this._slotCreateExpanded = expanded;
+        if (expanded) this._syncCreator?.();
+        if (this._creatorReveal) {
+            if (expanded) this._creatorItem.show();
+            this._creatorReveal.setExpanded(expanded, animate);
+            this._creatorItem.visible = this._creatorReveal.visible;
+        }
+        if (this._creatorButton)
+            this._creatorButton.style_class =
+                'pingoose-clear-button' + (expanded ? ' pingoose-toggle-active' : '');
     }
 
     clear() {
+        this._slotAction = null;
+        this._createError = null;
         this._slots = [];
+        this._slotsReady = false;
+        this._renderedSlots = null;
         this._slotPollingReady = false;
         this._slotPollBucket = null;
         this._slotDraft = null;
@@ -173,14 +200,16 @@ var Controller = class Controller {
         this._requestSlots(command);
     }
 
-    _requestSlots(command) {
+    _requestSlots(command, action = null) {
         if (this._slotsBusy) return;
         const flags =
             Me?.imports?.models?.featureFlags ||
             imports.misc.extensionUtils.getCurrentExtension().imports.models.featureFlags;
         if (command.startsWith('slots:open') && !flags.enabled(this._settings, 'hidden-auto-slots'))
             return;
+        this._slotAction = action;
         this._slotCreating = command.startsWith('slots:create:');
+        if (this._slotCreating) this._setCreateError(null);
         this._slotsBusy = true;
         this._slotsError = null;
         this._bridge.send(command);
@@ -188,10 +217,12 @@ var Controller = class Controller {
     }
 
     renderSlots() {
+        this._renderedSlots = null;
         this._renderSlots();
     }
 
     _renderSlots() {
+        this._syncActionButtons();
         this._syncOptionalSectionsCallback?.();
         const indicator = this._indicator;
         if (!indicator) return;
@@ -209,9 +240,22 @@ var Controller = class Controller {
 
         const section = indicator.slotItems;
         if (!section) return;
+        // Tab toggles and background polls must not rebuild unchanged actors.
+        // Include every field used by a row or its close action; ignore server order.
+        const rows = (this._slots || [])
+            .map((row) => [String(row.id), row.ids || '', row.start, row.end, !!row.matched])
+            .sort((a, b) => a[0].localeCompare(b[0]));
+        const loading = this._slotsBusy && !this._slotsReady;
+        const key = JSON.stringify([rows, loading, this._slotsError]);
+        if (key === this._renderedSlots) return;
+        this._renderedSlots = key;
         section.removeAll();
+        this._actionButtons = [];
+        this._createErrorLabel = null;
+        this._creatorReveal = this._creatorItem = this._creatorButton = null;
+        this._syncCreator = null;
 
-        if (this._slotsBusy) {
+        if (loading) {
             const loading = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
             const spinner =
                 Me?.imports?.ui?.spinner ||
@@ -227,8 +271,38 @@ var Controller = class Controller {
             this._renderTextRow(section, 'No open slots.');
 
         this._renderSlotsFooter(section);
-        if (this._slotCreateExpanded) this._renderSlotCreator(section);
+        this._renderSlotCreator(section);
         if (this._slots?.some((row) => !row.matched)) this._renderCloseAllRow(section);
+    }
+
+    _setCreateError(error) {
+        this._createError = error || null;
+        if (!this._createErrorLabel) return;
+        this._createErrorLabel.text = this._createError || '';
+        this._createErrorLabel.visible = !!this._createError;
+    }
+
+    _trackActionButton(button, text, action) {
+        // Keep the label's allocation while replacing its paint with a spinner.
+        const content = new St.Widget({ layout_manager: new Clutter.BinLayout() });
+        const label = new St.Label({ text, x_align: Clutter.ActorAlign.CENTER });
+        const spinner = Me.imports.ui.spinner.create(16);
+        spinner.x_align = spinner.y_align = Clutter.ActorAlign.CENTER;
+        content.add_child(label);
+        content.add_child(spinner);
+        button.set_child(content);
+        button.accessible_name = text;
+        this._actionButtons.push({ button, label, spinner, action });
+        this._syncActionButtons();
+    }
+
+    _syncActionButtons() {
+        for (const { button, label, spinner, action } of this._actionButtons || []) {
+            const busy = this._slotsBusy && this._slotAction === action;
+            spinner.visible = !!busy;
+            label.opacity = busy ? 0 : 255;
+            button.reactive = button.can_focus = !this._slotsBusy;
+        }
     }
 
     _renderTextRow(section, text, error = false) {
@@ -322,7 +396,8 @@ var Controller = class Controller {
             can_focus: true,
             style_class: 'pingoose-clear-button',
         });
-        refresh.connect('clicked', () => this._requestSlots('slots:list'));
+        this._trackActionButton(refresh, 'Refresh', 'refresh');
+        refresh.connect('clicked', () => this._requestSlots('slots:list', 'refresh'));
         footer.add_child(refresh);
 
         const create = new St.Button({
@@ -332,9 +407,9 @@ var Controller = class Controller {
                 'pingoose-clear-button' +
                 (this._slotCreateExpanded ? ' pingoose-toggle-active' : ''),
         });
+        this._creatorButton = create;
         create.connect('clicked', () => {
-            this._slotCreateExpanded = !this._slotCreateExpanded;
-            this._renderSlots();
+            this._setCreatorExpanded(!this._slotCreateExpanded);
         });
         footer.add_child(create);
 
@@ -347,7 +422,8 @@ var Controller = class Controller {
                 can_focus: true,
                 style_class: 'pingoose-clear-button',
             });
-            auto.connect('clicked', () => this._requestSlots('slots:open-auto'));
+            this._trackActionButton(auto, 'Auto Open', 'auto');
+            auto.connect('clicked', () => this._requestSlots('slots:open-auto', 'auto'));
             footer.add_child(auto);
         }
         section.addMenuItem(footer);
@@ -363,13 +439,12 @@ var Controller = class Controller {
             return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         };
         const earliest = () => Math.ceil((Date.now() + 1800000) / 900000) * 900000;
-        if (!Number.isFinite(this._slotDraft?.begin) || this._slotDraft.begin < earliest()) {
-            const begin = earliest();
-            this._slotDraft = { begin, end: begin + 1800000 };
-        }
-
         const labels = [];
         const sync = () => {
+            if (!Number.isFinite(this._slotDraft?.begin) || this._slotDraft.begin < earliest()) {
+                const begin = earliest();
+                this._slotDraft = { begin, end: begin + 1800000 };
+            }
             for (const { key, date, hour, minute } of labels) {
                 const value = new Date(this._slotDraft[key]);
                 date.text = `${String(value.getMonth() + 1).padStart(2, '0')}/${String(value.getDate()).padStart(2, '0')}`;
@@ -379,6 +454,8 @@ var Controller = class Controller {
         };
 
         const adjust = (key, delta) => {
+            if (this._slotsBusy) return;
+            this._setCreateError(null);
             const draft = this._slotDraft;
             const latest = Math.floor((Date.now() + 7 * 86400000) / 900000) * 900000;
             if (key === 'begin') {
@@ -404,7 +481,13 @@ var Controller = class Controller {
         });
         const range = new St.BoxLayout({ x_expand: true, style_class: 'pingoose-slot-editor' });
         card.add_child(range);
-        cardItem.add_child(card);
+        const reveal = new Me.imports.ui.reveal.Reveal(card);
+        this._creatorReveal = reveal;
+        this._creatorItem = cardItem;
+        reveal.connect('notify::visible', () => {
+            cardItem.visible = reveal.visible;
+        });
+        cardItem.add_child(reveal);
         section.addMenuItem(cardItem);
 
         for (const [key, label] of [
@@ -467,6 +550,18 @@ var Controller = class Controller {
         }
         sync();
 
+        const errorLabel = new St.Label({
+            x_expand: true,
+            request_mode: Clutter.RequestMode.HEIGHT_FOR_WIDTH,
+            style_class: 'pingoose-slot-error',
+            style: 'max-width: 390px;',
+        });
+        errorLabel.clutter_text.line_wrap = true;
+        errorLabel.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+        errorLabel.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+        this._createErrorLabel = errorLabel;
+        card.add_child(errorLabel);
+        this._setCreateError(this._createError);
         const actions = new St.BoxLayout({ x_expand: true });
         const submit = new St.Button({
             label: 'Create',
@@ -475,7 +570,9 @@ var Controller = class Controller {
             x_align: Clutter.ActorAlign.END,
             style_class: 'pingoose-clear-button',
         });
+        this._trackActionButton(submit, 'Create', 'create');
         submit.connect('clicked', () => {
+            if (this._slotsBusy) return;
             try {
                 const payload = schedule.manual(
                     format(this._slotDraft.begin),
@@ -490,14 +587,15 @@ var Controller = class Controller {
                     throw new Error(
                         `Could not create slot:\nOverlaps ${format(conflict.start)} – ${format(conflict.end)}.`
                     );
-                this._requestSlots('slots:create:' + JSON.stringify(payload));
+                this._requestSlots('slots:create:' + JSON.stringify(payload), 'create');
             } catch (error) {
-                this._slotsError = error.message;
-                this._renderSlots();
+                this._setCreateError(error.message);
             }
         });
         actions.add_child(submit);
         card.add_child(actions);
+        this._syncCreator = sync;
+        this._setCreatorExpanded(this._slotCreateExpanded, false);
     }
 
     _renderCloseAllRow(section) {

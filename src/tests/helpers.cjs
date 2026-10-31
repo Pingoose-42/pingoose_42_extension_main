@@ -142,3 +142,19 @@ class Actor extends Signals {
 }
 module.exports.Signals = Signals;
 module.exports.Actor = Actor;
+
+class Reveal extends Actor {
+    constructor(childActor) {
+        super({ visible: false });
+        this.childActor = childActor;
+        this.expanded = false;
+        childActor.show();
+        this.add_child(childActor);
+    }
+    setExpanded(expanded) {
+        this.expanded = this.visible = !!expanded;
+        this.progress = expanded ? 1 : 0;
+        this.emit('notify::progress');
+    }
+}
+module.exports.Reveal = Reveal;

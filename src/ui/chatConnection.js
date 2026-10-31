@@ -14,10 +14,6 @@ var Controller = class Controller {
         const add = addButton;
         const center = Clutter.ActorAlign.CENTER;
         ui.peerRow = new St.BoxLayout({ visible: false, style_class: 'pingoose-chat-input-row' });
-        ui.peerRow.connect('notify::visible', () => {
-            ui.add.style_class =
-                'pingoose-chat-add' + (ui.peerRow.visible ? ' pingoose-toggle-active' : '');
-        });
         ui.peerEntry = new St.Entry({
             hint_text: 'Seat number or Intra ID',
             can_focus: true,
@@ -71,17 +67,18 @@ var Controller = class Controller {
             ui.peerFeedback.hide();
         });
         connect.connect('clicked', submitPeer);
+        ui.peerReveal = new Me.imports.ui.reveal.Reveal(ui.peerRow);
         this.addSignal = add.connect('clicked', () => {
             if (!this.allowed()) return;
             if (this._lookup || this._pendingConnection) return;
-            const open = !ui.peerRow.visible;
-            this._resetPeerInput();
-            ui.peerRow.visible = open;
-            if (ui.peerRow.visible) global.stage.set_key_focus(ui.peerEntry);
+            const open = !ui.peerReveal.expanded;
+            this._resetPeerInput(false);
+            this._setInputOpen(open);
+            if (open) global.stage.set_key_focus(ui.peerEntry);
         });
     }
     get row() {
-        return this.ui.peerRow;
+        return this.ui.peerReveal;
     }
     get feedback() {
         return this.ui.peerFeedback;
@@ -151,13 +148,17 @@ var Controller = class Controller {
         }
         this._connectPeer(message.seat, message.login);
     }
-    _resetPeerInput() {
+    _setInputOpen(open) {
+        this.ui.peerReveal.setExpanded(open);
+        this.ui.add.style_class = 'pingoose-chat-add' + (open ? ' pingoose-toggle-active' : '');
+    }
+    _resetPeerInput(close = true) {
         const ui = this.ui;
         ui.peerEntry.text = '';
         ui.peerEntry.remove_style_class_name('pingoose-chat-entry-error');
         ui.peerFeedback.text = '';
         ui.peerFeedback.hide();
-        ui.peerRow.hide();
+        if (close) this._setInputOpen(false);
     }
     _setConnectBusy(busy) {
         if (!busy) this.onIdle();
@@ -176,12 +177,12 @@ var Controller = class Controller {
         this._setConnectBusy(false);
         this.ui.peerEntry.text = '';
         this.ui.peerFeedback.hide();
-        this.ui.peerRow.hide();
+        this._setInputOpen(false);
     }
     _connectionError(text) {
         this._setConnectBusy(false);
         const ui = this.ui;
-        ui.peerRow.show();
+        this._setInputOpen(true);
         ui.peerEntry.add_style_class_name('pingoose-chat-entry-error');
         ui.peerFeedback.text = text;
         ui.peerFeedback.show();

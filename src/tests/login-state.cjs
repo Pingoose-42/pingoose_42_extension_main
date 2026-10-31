@@ -6,7 +6,9 @@ const Indicator = vm.runInNewContext(source + '\nIndicator', {
     imports: {
         gi: { GObject: { registerClass: (value) => value } },
         ui: { panelMenu: { Button: class {} } },
-        misc: { extensionUtils: { getCurrentExtension: () => ({ imports: { ui: {} } }) } },
+        misc: {
+            extensionUtils: { getCurrentExtension: () => ({ imports: { ui: { reveal: {} } } }) },
+        },
     },
 });
 const indicator = Object.create(Indicator.prototype);

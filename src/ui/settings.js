@@ -43,6 +43,7 @@ var Controller = class Controller {
     destroy() {
         this._settings.disconnect(this._themeChanged);
         this._indicator.menu.disconnect(this._openSignal);
+        this._indicator.menu.disconnect(this._closedSignal);
         this._indicator.onLoginStateChanged = null;
         this._unsubRefresh();
         if (this._refreshTimer) GLib.source_remove(this._refreshTimer);
@@ -194,6 +195,8 @@ var Controller = class Controller {
                     'start-reminders-sent',
                     'agenda-calendar-scope',
                     'auto-delete-past-agenda-calendar',
+                    'panel-animations',
+                    'panel-animation-duration',
                 ].includes(key)
             )
                 return;
@@ -220,24 +223,29 @@ var Controller = class Controller {
         });
         sync();
         this._layout.applyPanelLayout();
+        const closePanels = () => {
+            if (this._settings.get_boolean('auto-close-panels')) {
+                this._servicePanel.close();
+                this._projectPanel.close();
+                this._chatPanel.close();
+            }
+        };
         this._openSignal = indicator.menu.connect('open-state-changed', (_menu, open) => {
             if (!open) {
                 settings.close();
-                if (this._settings.get_boolean('auto-close-panels')) {
-                    this._servicePanel.close();
-                    this._projectPanel.close();
-                    this._chatPanel.close();
-                }
+                if (!indicator.menu.actor.visible) closePanels();
             }
             if (open) {
                 settings.close();
                 this._slots.closeEditor();
-                if (this._slots.slotsExpanded && !indicator.loginOnly)
-                    this._slots.requestSlots('slots:list');
+
                 this._agenda.closeDetails();
                 showMain();
                 this._notifications.markRead();
             }
+        });
+        this._closedSignal = indicator.menu.connect('menu-closed', () => {
+            if (!indicator.menu.isOpen) closePanels();
         });
         indicator.onLoginStateChanged = () => {
             settings.close();

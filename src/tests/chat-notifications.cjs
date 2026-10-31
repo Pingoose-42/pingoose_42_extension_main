@@ -15,7 +15,7 @@ function fixture() {
         _indicator: { menu: { isOpen: true }, loginOnly: false },
         _expanded: true,
         _chatActive: 'c1r1s1',
-        _chatUi: { root: { visible: true, mapped: true } },
+        _chatUi: { visible: true, root: { mapped: true } },
         _chat: { markRead: (key) => read.push(key) },
         _renderChat() {},
         _appendChatEntry() {},
@@ -40,7 +40,7 @@ for (const hide of [
         p._expanded = false;
     },
     (p) => {
-        p._chatUi.root.visible = false;
+        p._chatUi.visible = false;
     },
     (p) => {
         p._chatUi.root.mapped = false;

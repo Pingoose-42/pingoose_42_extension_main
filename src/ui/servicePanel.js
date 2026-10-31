@@ -18,7 +18,7 @@ var ServicePanel = class ServicePanel {
             y_align: Clutter.ActorAlign.START,
             style_class: 'pingoose-chat-panel pingoose-service-panel',
         });
-        indicator.sideColumns.insert_child_at_index(this.root, 0);
+        indicator.addPanel(this.root);
         const header = new St.BoxLayout({ style_class: 'pingoose-chat-header' });
         header.add_child(
             new St.Label({ text: '42 Services', x_expand: true, style_class: 'pingoose-heading' })
@@ -81,11 +81,12 @@ var ServicePanel = class ServicePanel {
             this.settings.get_boolean('service-enabled') &&
             this.settings.get_boolean('show-services');
         this.item.visible = visible;
-        this.root.visible = visible && this.expanded;
+        this.visible = visible && this.expanded;
+        this.indicator.setPanelVisible(this.root, this.visible);
         this.button.style_class =
-            'pingoose-visit-intra' + (this.root.visible ? ' pingoose-toggle-active' : '');
+            'pingoose-visit-intra' + (this.visible ? ' pingoose-toggle-active' : '');
         this.indicator.syncPanelLayout?.();
-        if (this.root.visible && this.indicator.menu.isOpen) this.loadPreviews();
+        if (this.visible && this.indicator.menu.isOpen) this.loadPreviews();
     }
     render() {
         for (const process of this.previews) process.force_exit();

@@ -19,6 +19,19 @@ function build(settings) {
     settings.bind('open-in-browser', openInBrowser, 'active', Gio.SettingsBindFlags.DEFAULT);
     Common.row(box, 'Open links in default browser', openInBrowser);
 
+    Common.sectionHeading(box, 'Animations');
+    const animations = new Gtk.Switch({ valign: Gtk.Align.CENTER });
+    settings.bind('panel-animations', animations, 'active', Gio.SettingsBindFlags.DEFAULT);
+    Common.row(box, 'Panel animations', animations);
+    const animationDuration = Gtk.SpinButton.new_with_range(100, 500, 25);
+    settings.bind(
+        'panel-animation-duration',
+        animationDuration,
+        'value',
+        Gio.SettingsBindFlags.DEFAULT
+    );
+    settings.bind('panel-animations', animationDuration, 'sensitive', Gio.SettingsBindFlags.GET);
+    Common.row(box, 'Animation duration (100–500 ms)', animationDuration);
     Common.sectionHeading(box, 'Logtime');
     const secondsMode = new Gtk.ComboBoxText();
     secondsMode.append('truncate', 'Whole minutes per day');

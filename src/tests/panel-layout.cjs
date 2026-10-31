@@ -3,6 +3,7 @@ const fs = require('node:fs'),
     assert = require('node:assert/strict');
 const context = {
     imports: {
+        misc: { extensionUtils: { getCurrentExtension: () => ({}) } },
         gi: { Clutter: { ActorAlign: { START: 0, END: 1 } } },
         ui: { main: { layoutManager: { findMonitorForActor: () => ({ y: 0, height: 1080 }) } } },
     },
@@ -65,6 +66,10 @@ console.log('PASS: bottom panel aligns all columns at the bottom; top panel rema
 // Layout owns the shared host independently of whether general chat is enabled.
 const { Actor, controller: loadController } = require('./helpers.cjs');
 class Columns extends Actor {
+    insert_child_at_index(child, index) {
+        this.children.splice(index, 0, child);
+        child.parent = this;
+    }
     set_child_below_sibling(child, sibling) {
         this.children.splice(this.children.indexOf(child), 1);
         this.children.splice(this.children.indexOf(sibling), 0, child);
@@ -78,6 +83,7 @@ const close = function (value) {
 };
 const host = {
     menu: {
+        isOpen: true,
         box: hostMain,
         actor: new Actor(),
         close,
@@ -96,13 +102,47 @@ const host = {
 };
 const Layout = loadController('ui/layout.js', {
     imports: {
+        misc: {
+            extensionUtils: {
+                getCurrentExtension: () => ({
+                    imports: {
+                        ui: {
+                            reveal: {
+                                Reveal: class extends Columns {
+                                    constructor(content) {
+                                        super({ visible: false });
+                                        this.childActor = content;
+                                        this.add_child(content);
+                                    }
+                                    setExpanded(visible) {
+                                        this.visible = visible;
+                                    }
+                                },
+                            },
+                            popupMotion: {
+                                Controller: class {
+                                    constructor(menu) {
+                                        this.menu = menu;
+                                        this.close = menu.close;
+                                        menu.close = () => this.close.call(menu, 0);
+                                    }
+                                    destroy() {
+                                        this.menu.close = this.close;
+                                    }
+                                },
+                            },
+                        },
+                    },
+                }),
+            },
+        },
         gi: { St: { BoxLayout: Columns }, Clutter: { RequestMode: {}, ActorAlign: {} } },
         ui: { boxpointer: { PopupAnimation: { NONE: 0 } } },
     },
 });
-const layout = new Layout(host, {});
+const layout = new Layout(host, { get_int: () => 0 });
 const side = new Actor();
-host.sideColumns.add_child(side);
+host.addPanel(side);
 host.bringPanelNearMain(side);
 assert.equal(host.sideColumns.children.at(-1), hostMain);
 assert.equal(child, host.sideColumns);
@@ -110,12 +150,22 @@ host.menu.close();
 assert.equal(animation, 0);
 const servicePanel = new Actor(),
     projectPanel = new Actor();
-host.sideColumns.add_child(servicePanel);
-host.sideColumns.add_child(projectPanel);
+host.addPanel(servicePanel);
+host.addPanel(projectPanel);
 host.bringPanelNearMain(servicePanel);
 host.bringPanelNearMain(projectPanel);
 host.bringPanelNearMain(side);
-assert.deepEqual(host.sideColumns.children, [servicePanel, projectPanel, side, hostMain]);
+assert.deepEqual(
+    host.sideColumns.children.map((child) => child.childActor || child),
+    [servicePanel, projectPanel, side, hostMain]
+);
+host.setPanelVisible(side, true);
+assert.equal(host.sideColumns.children[2].visible, true);
+host.placePanelBefore(servicePanel, side);
+assert.deepEqual(
+    host.sideColumns.children.map((child) => child.childActor || child),
+    [projectPanel, servicePanel, side, hostMain]
+);
 layout.destroy();
 assert.equal(host.menu.close, close);
 assert.equal(host.bringPanelNearMain, null);
