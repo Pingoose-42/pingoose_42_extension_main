@@ -15,11 +15,12 @@ const portable = args[0] === '--portable';
 let checks = 0;
 let failed = 0;
 
-function run(command, commandArgs, label, quiet = false) {
+function run(command, commandArgs, label, quiet = false, timeout = undefined) {
     const result = spawnSync(command, commandArgs, {
         cwd: root,
         encoding: 'utf8',
         windowsHide: true,
+        timeout,
     });
     checks++;
     if (result.error || result.status !== 0) {
@@ -81,9 +82,13 @@ if (portable) {
             'probe',
             'seat-migration',
             'self-loopback',
+            'image-loopback',
+            'image-helper-native',
         ]) {
-            run('gjs', [`src/tests/chat-${name}.js`], `GJS chat-${name}`);
+            // A native callback failure can prevent even GLib timeout sources from running.
+            run('gjs', [`src/tests/chat-${name}.js`], `GJS chat-${name}`, false, 120_000);
         }
+        run('python3', ['-B', 'src/tests/chat-image-worker.py'], 'Native image decoding');
     }
 }
 

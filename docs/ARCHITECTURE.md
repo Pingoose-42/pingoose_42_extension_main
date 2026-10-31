@@ -100,6 +100,10 @@ npm run format
 
 ## 모듈 경계 유지
 
+채팅 이미지의 형식·10MiB 한도·base64 검증·썸네일 비율 계산은 `models/chatImage`가 공유합니다. `services/chat`은 기존 JSON hello에 `image-v1` 기능과 인스턴스 nonce를 선택적으로 알립니다. 이미지 begin/chunk/end는 허용된 연결에서만 처리하며 개별 행은 기존 4096바이트 한도를 유지합니다. 청크 순서·정확한 길이·전체 바이트·절대 전송 제한 시간을 검사하고, 송신·수신 진행 데이터는 각각 전체 20MiB, 수신 동시 작업은 2개로 제한합니다. 기록의 원본 합계는 40MiB이며 오래된 이미지가 제거되면 UI에 변경 신호를 전달합니다. 자기 자신 판정은 nonce 일치와 실제 loopback/로컬 주소 일치를 함께 요구하며 로그인 문자열만으로 판정하지 않습니다.
+
+`ui/chatAttachments`는 파일 선택 요청의 대상·취소·썸네일 표시를 소유합니다. GTK 파일 선택과 원본 디코딩은 `services/chatImageHelper`가 별도 `worker/chatImage.js` 프로세스로 실행합니다. Shell에는 원본 디코더나 Gtk를 로드하지 않고, 검증된 최대 256×192 raw 픽셀만 `Clutter.Image`로 넘깁니다. helper의 입력·출력 바이트를 제한하고 종료·취소 시 자식 프로세스를 회수합니다. 썸네일 작업은 최대 2개이며 패널이 숨겨지면 중단합니다. 파일 선택을 위해 메뉴 grab을 풀 때는 초안과 대상 identity를 보존하고, 지연된 자동 닫힘 이벤트를 구분합니다.
+
 테마 ID·표시 이름·기본 명암·패널 배경색은 `models/themes.js`가 관리합니다. `preferences/general`은 같은 테마 목록을 사용하고, `ui/settings`는 모든 기존 테마 클래스를 제거한 뒤 기본 명암 클래스와 선택한 테마 클래스를 적용합니다. `stylesheet.css`의 팔레트별 규칙은 입력칸·선택·버튼·카드 색상만 바꾸고 기존 배치 치수는 유지합니다.
 
 `panel-transparency`는 0~80%이며 기본값 0은 불투명입니다. `ui/layout.applyPanelAppearance()`가 메인 ScrollView와 각 사이드 패널의 실제 배경 루트에만 RGBA 색을 지정합니다. 바깥 frame의 간격, 내부 scroll의 높이 제한, 액터 전체의 opacity와 애니메이션은 별개로 유지합니다. 새 테마의 패널 배경색을 바꿀 때는 CSS의 불투명 기본색과 `models/themes.js`의 RGB 값을 함께 맞춥니다. `selectableText`는 St.Label이 자동 적용하지 않는 선택색을 theme node에서 읽으며, 아직 테마가 연결되지 않은 경우 기존 대비색을 사용합니다.

@@ -2128,3 +2128,43 @@
     background-color: #243b49;
     color: #aac6d1;
 }
+
+/* Image thumbnails reserve their frame while the separate decoder is running. */
+.pingoose-chat-image {
+    spacing: 4px;
+}
+.pingoose-chat-image-preview {
+    border-radius: 8px;
+    background-color: #171b20;
+    color: #b7c3ce;
+}
+.pingoose-chat-image-placeholder {
+    max-width: 232px;
+    text-align: center;
+    font-size: 0.9em;
+}
+.pingoose-chat-image-caption {
+    max-width: 256px;
+    font-size: 0.9em;
+}
+.pingoose-chat-image-feedback {
+    max-width: 328px;
+    font-size: 0.85em;
+    text-align: left;
+}
+.pingoose-light .pingoose-chat-image-preview {
+    background-color: #e7ecef;
+    color: #465461;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-image-preview {
+    background-color: #f6dfe9;
+    color: #70415a;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-image-preview {
+    background-color: #18131e;
+    color: #c9b5cd;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-image-preview {
+    background-color: #0b151e;
+    color: #9ab7c4;
+}

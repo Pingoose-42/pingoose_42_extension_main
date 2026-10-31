@@ -16,7 +16,23 @@ try {
 const MAX_LINE = 4096;
 const MAX_CONNECTIONS = 16;
 const MAX_HISTORY = 200;
+const IMAGE_CHUNK = 3072;
+const IMAGE_WRITE_CHUNKS = 16;
+const MAX_IMAGE_TRANSFERS = 2;
+const MAX_TRANSFER_BYTES = 20 * 1024 * 1024;
+const IMAGE_TIMEOUT = 60;
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
+let Images;
+function imageModel() {
+    if (!Images) {
+        try {
+            Images = imports.models.chatImage;
+        } catch (_) {
+            Images = imports.misc.extensionUtils.getCurrentExtension().imports.models.chatImage;
+        }
+    }
+    return Images;
+}
 
 // Conversation key for a host: "c2r3s4" for cluster seats, otherwise the host itself.
 function peerKey(host) {
@@ -44,6 +60,40 @@ function now() {
     return GLib.DateTime.new_now_local().format('%H:%M');
 }
 
+// GBytes owns its storage across the async boundary. In contrast, GJS may
+// release the temporary C array passed to write_all_async when that call returns.
+function writeBytes(output, bytes, cancellable, complete) {
+    let offset = 0;
+    const size = bytes.get_size();
+    const next = () => {
+        try {
+            const remaining = offset ? bytes.new_from_bytes(offset, size - offset) : bytes;
+            output.write_bytes_async(
+                remaining,
+                GLib.PRIORITY_DEFAULT,
+                cancellable,
+                (stream, result) => {
+                    let count;
+                    try {
+                        count = stream.write_bytes_finish(result);
+                        if (!Number.isInteger(count) || count <= 0 || count > size - offset)
+                            throw Error('Incomplete chat write');
+                    } catch (error) {
+                        complete(error);
+                        return;
+                    }
+                    offset += count;
+                    if (offset < size) next();
+                    else complete(null);
+                }
+            );
+        } catch (error) {
+            complete(error);
+        }
+    };
+    next();
+}
+
 var ChatService = class ChatService {
     constructor(port = PORT, blocked = []) {
         this.port = port;
@@ -58,6 +108,10 @@ var ChatService = class ChatService {
         this._connections = 0;
         this._streams = new Map();
         this._rate = { time: 0, count: 0 };
+        this._imageRate = { time: 0, bytes: 0 };
+        this._incomingImages = new Map();
+        this._imageSequence = 0;
+        this._instance = null;
         this._destroyed = false;
     }
 
@@ -130,6 +184,7 @@ var ChatService = class ChatService {
                 this.emit('peer-changed', seat);
             }
         }
+        for (const key of this._trimImageHistory()) this.emit('image-history-pruned', key);
     }
     _grantKey(grant) {
         return JSON.stringify([grant.id, grant.login, grant.seat, grant.expires]);
@@ -176,6 +231,7 @@ var ChatService = class ChatService {
         const state = this._handshakes.get(conn);
         return (
             state?.ready &&
+            !this.isBlocked(peer.key) &&
             Policy.accepts(this.policy, peer.key, state.hello) &&
             peer.scope === state.hello.scope
         );
@@ -184,32 +240,32 @@ var ChatService = class ChatService {
         const state = this._handshakes.get(conn);
         if (!state || state.sent) return;
         state.sent = true;
+        this._instance ||= GLib.uuid_string_random();
         const hello = {
             type: 'hello',
             protocol: 'pingoose-chat-2',
             scope: peer.scope,
             login: this.policy.login,
             general: this.policy.general,
+            features: ['image-v1'],
+            instance: this._instance,
         };
-        conn.get_output_stream().write_all_async(
-            ByteArray.fromString(JSON.stringify(hello) + '\n'),
-            GLib.PRIORITY_DEFAULT,
-            this._cancel,
-            (stream, result) => {
-                try {
-                    stream.write_all_finish(result);
-                } catch (_) {
-                    peer.queue = [];
-                    this._drop(peer, conn);
-                    return;
-                }
-                if (!this._handshakes.has(conn)) return;
-                state.written = true;
-                state.ready = !!state.hello;
-                this._ready(peer, conn);
-                this._flush(peer);
+        // Keep the stream and the owning GBytes alive until completion.
+        state.output ||= conn.get_output_stream();
+        state.helloBytes = new GLib.Bytes(ByteArray.fromString(JSON.stringify(hello) + '\n'));
+        writeBytes(state.output, state.helloBytes, this._cancel, (error) => {
+            state.helloBytes = null;
+            if (error) {
+                peer.queue = [];
+                this._drop(peer, conn);
+                return;
             }
-        );
+            if (!this._handshakes.has(conn)) return;
+            state.written = true;
+            state.ready = !!state.hello;
+            this._ready(peer, conn);
+            this._flush(peer);
+        });
     }
     _handleLine(peer, conn, text) {
         let value;
@@ -234,6 +290,10 @@ var ChatService = class ChatService {
             peer.login = value.login;
             peer.scope = value.scope;
             state.hello = value;
+            state.self =
+                value.instance === this._instance &&
+                !!this._instance &&
+                this._localConnection(conn);
             this.emit('peer-changed', peer.key);
             this._sendHello(peer, conn);
             state.ready = !!state.written;
@@ -241,14 +301,152 @@ var ChatService = class ChatService {
             this._flush(peer);
             return true;
         }
+        if (!this._authorized(peer, conn)) return false;
+        if (['image-begin', 'image-chunk', 'image-end'].includes(value?.type)) {
+            const accepted = this._receiveImage(peer, conn, value);
+            if (!accepted) this._clearImageTransfer(conn);
+            return accepted;
+        }
+        if (value?.type !== 'message' || typeof value.text !== 'string' || value.text.length > 1000)
+            return false;
+        if (value.text.trim() && !state.self) this._record(peer, 'in', value.text);
+        return true;
+    }
+
+    _localConnection(conn) {
+        try {
+            const remote = conn.get_remote_address().get_address();
+            return remote.get_is_loopback() || remote.equal(conn.get_local_address().get_address());
+        } catch (_) {
+            return false;
+        }
+    }
+
+    _imageCapable(peer, conn) {
+        const hello = this._handshakes.get(conn)?.hello;
+        return (
+            this._authorized(peer, conn) &&
+            Array.isArray(hello.features) &&
+            hello.features.includes('image-v1')
+        );
+    }
+
+    _queuedImageBytes() {
+        let bytes = 0;
+        for (const peer of this._peers.values()) {
+            if (peer.sendingImage) bytes += peer.sendingImage.image.size;
+            for (const item of peer.queue) if (item?.kind === 'image') bytes += item.image.size;
+        }
+        return bytes;
+    }
+
+    imageSendStatus(key) {
+        const peer = this.peer(key);
         if (
-            !this._authorized(peer, conn) ||
-            value?.type !== 'message' ||
-            typeof value.text !== 'string' ||
-            value.text.length > 1000
+            !peer ||
+            !this._alive(peer) ||
+            this.isBlocked(key) ||
+            !this.canOpen(key, peer.scope) ||
+            !this.isConnected(key)
+        )
+            return 'unavailable';
+        if (!peer.connections.some((conn) => this._imageCapable(peer, conn))) return 'unsupported';
+        if (
+            peer.sendingImage ||
+            peer.queue.some((item) => item?.kind === 'image') ||
+            peer.queue.length >= 32 ||
+            this._queuedImageBytes() >= MAX_TRANSFER_BYTES
+        )
+            return 'busy';
+        return 'ready';
+    }
+
+    canSendImage(key) {
+        return this.imageSendStatus(key) === 'ready';
+    }
+
+    sendImage(key, payload) {
+        if (!this.canSendImage(key)) return false;
+        const image = imageModel().validate(payload);
+        if (!image || this._queuedImageBytes() + image.size > MAX_TRANSFER_BYTES) return false;
+        const peer = this.peer(key);
+        peer.queue.push({ kind: 'image', image });
+        this._record(peer, 'out', imageModel().summary(image), image);
+        this._flush(peer);
+        return true;
+    }
+
+    _clearImageTransfer(conn) {
+        const transfer = this._incomingImages.get(conn);
+        if (transfer?.timer) GLib.source_remove(transfer.timer);
+        this._incomingImages.delete(conn);
+    }
+
+    _receiveImage(peer, conn, frame) {
+        if (
+            !this._imageCapable(peer, conn) ||
+            typeof frame.id !== 'string' ||
+            !/^[a-zA-Z0-9-]{1,64}$/.test(frame.id)
         )
             return false;
-        if (value.text.trim()) this._record(peer, 'in', value.text);
+        const transfer = this._incomingImages.get(conn);
+        if (frame.type === 'image-begin') {
+            const info = imageModel().metadata(frame);
+            const bytes = [...this._incomingImages.values()].reduce(
+                (sum, value) => sum + value.info.size,
+                0
+            );
+            if (
+                !info ||
+                transfer ||
+                this._incomingImages.size >= MAX_IMAGE_TRANSFERS ||
+                bytes + info.size > MAX_TRANSFER_BYTES
+            )
+                return false;
+            const incoming = { id: frame.id, info, chunks: [], length: 0, next: 0, timer: 0 };
+            incoming.timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, IMAGE_TIMEOUT, () => {
+                incoming.timer = 0;
+                this._record(peer, 'sys', 'Image transfer timed out. Ask the sender to retry.');
+                this._drop(peer, conn);
+                return GLib.SOURCE_REMOVE;
+            });
+            this._incomingImages.set(conn, incoming);
+            return true;
+        }
+        if (!transfer || transfer.id !== frame.id) return false;
+        if (frame.type === 'image-chunk') {
+            const data = frame.data;
+            const expected = Math.ceil(transfer.info.size / 3) * 4;
+            if (
+                frame.index !== transfer.next ||
+                typeof data !== 'string' ||
+                data.length !== Math.min(IMAGE_CHUNK, expected - transfer.length) ||
+                !data.length ||
+                data.length % 4 ||
+                !/^[A-Za-z0-9+/]*={0,2}$/.test(data) ||
+                (transfer.length + data.length < expected && data.includes('='))
+            )
+                return false;
+            const time = GLib.get_monotonic_time() / 1000000;
+            if (time - this._imageRate.time >= 10) this._imageRate = { time, bytes: 0 };
+            this._imageRate.bytes += data.length;
+            if (
+                this._imageRate.bytes >
+                MAX_IMAGE_TRANSFERS * Math.ceil(imageModel().MAX_BYTES / 3) * 4
+            )
+                return false;
+            transfer.chunks.push(data);
+            transfer.length += data.length;
+            transfer.next++;
+            return true;
+        }
+        if (frame.type !== 'image-end' || transfer.length !== Math.ceil(transfer.info.size / 3) * 4)
+            return false;
+        const image = imageModel().validate({ ...transfer.info, data: transfer.chunks.join('') });
+        this._clearImageTransfer(conn);
+        if (!image) return false;
+        if (!this._handshakes.get(conn).self)
+            this._record(peer, 'in', imageModel().summary(image), image);
         return true;
     }
 
@@ -400,6 +598,7 @@ var ChatService = class ChatService {
         peer.connecting = false;
         peer.history = [];
         peer.queue = [];
+        this._clearSendingImage(peer);
         peer.unread = 0;
         for (const conn of [...peer.connections]) this._drop(peer, conn);
         this.emit('peer-changed', key);
@@ -410,6 +609,7 @@ var ChatService = class ChatService {
         this._cancel.cancel();
         for (const peer of this._peers.values()) {
             peer.connectCancel?.cancel();
+            this._clearSendingImage(peer);
             for (const conn of peer.connections) this._closeStream(conn);
         }
         for (const conn of [...this._streams.keys()]) this._closeStream(conn);
@@ -471,17 +671,48 @@ var ChatService = class ChatService {
         this._record(peer, 'sys', text);
     }
 
-    _record(peer, dir, text) {
+    _record(peer, dir, text, image = null) {
         if (!this._alive(peer) || this.isBlocked(peer.key)) return;
         if (peer.background && dir === 'sys') return;
         if (dir !== 'sys') peer.background = false;
         const entry = { dir, text, time: now() };
+        if (image) {
+            entry.kind = 'image';
+            entry.image = image;
+            entry.imageOrder = ++this._imageSequence;
+        }
         peer.history.push(entry);
         if (peer.history.length > MAX_HISTORY)
             peer.history.splice(0, peer.history.length - MAX_HISTORY);
         peer.activity = Date.now();
         if (dir === 'in') peer.unread++;
+        const pruned = image ? this._trimImageHistory() : [];
         this.emit('message', peer.key, entry);
+        for (const key of pruned) this.emit('image-history-pruned', key);
+    }
+
+    _trimImageHistory() {
+        const entries = new Map();
+        const add = (entry, key) => {
+            if (!entry.image) return;
+            if (!entries.has(entry)) entries.set(entry, new Set());
+            entries.get(entry).add(key);
+        };
+        for (const peer of this._peers.values())
+            for (const entry of peer.history) add(entry, peer.key);
+        for (const saved of this._evaluationChats?.values() || [])
+            for (const entry of saved.history) add(entry, saved.seat);
+        if (!entries.size) return [];
+        const pruned = new Set();
+        let bytes = [...entries.keys()].reduce((sum, entry) => sum + entry.image.size, 0);
+        for (const entry of [...entries.keys()].sort((a, b) => a.imageOrder - b.imageOrder)) {
+            if (bytes <= imageModel().MAX_HISTORY_BYTES) break;
+            bytes -= entry.image.size;
+            entry.text = `[Image no longer kept in memory] ${entry.image.name}`;
+            entry.image = null;
+            for (const key of entries.get(entry)) pruned.add(key);
+        }
+        return [...pruned];
     }
 
     _connect(peer) {
@@ -596,7 +827,8 @@ var ChatService = class ChatService {
                     grant.login === this.policy.login &&
                     grant.expires > Date.now()
             );
-            admit(selfTest?.seat || 'localhost');
+            const localSeat = peerKey(GLib.get_host_name());
+            admit(selfTest?.seat || (SEAT.test(localSeat) ? localSeat : 'localhost'));
             return;
         }
         // Only cluster hosts (or the private network they sit on) may open a chat.
@@ -663,12 +895,18 @@ var ChatService = class ChatService {
     }
 
     _attach(peer, conn, outgoing = false) {
-        this._handshakes.set(conn, { ready: false, sent: false, hello: null });
-        peer.connections.push(conn);
         const input = new Gio.DataInputStream({
             base_stream: conn.get_input_stream(),
             close_base_stream: false,
         });
+        this._handshakes.set(conn, {
+            ready: false,
+            sent: false,
+            hello: null,
+            input,
+            output: conn.get_output_stream(),
+        });
+        peer.connections.push(conn);
         if (outgoing) this._sendHello(peer, conn);
         this._read(peer, conn, input);
         this.emit('peer-changed', peer.key);
@@ -677,19 +915,31 @@ var ChatService = class ChatService {
 
     _read(peer, conn, input, pending = []) {
         if (this._destroyed || !peer.connections.includes(conn)) return;
-        const old = this._streams.get(conn);
-        if (old) GLib.source_remove(old);
-        const timer = GLib.timeout_add_seconds(
-            GLib.PRIORITY_DEFAULT,
-            this._handshakes.get(conn)?.hello ? 60 : 10,
-            () => {
-                this._streams.delete(conn);
-                this._drop(peer, conn);
-                return GLib.SOURCE_REMOVE;
-            }
-        );
-        this._streams.set(conn, timer);
-        input.read_bytes_async(1024, GLib.PRIORITY_DEFAULT, this._cancel, (stream, result) => {
+        const state = this._handshakes.get(conn);
+        if (!state) return;
+        if (!state.reading) {
+            state.reading = true;
+            state.lastRead = GLib.get_monotonic_time() / 1000000;
+            const old = this._streams.get(conn);
+            if (old) GLib.source_remove(old);
+            const schedule = (seconds) => {
+                const timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, seconds, () => {
+                    this._streams.delete(conn);
+                    const remaining =
+                        state.lastRead +
+                        (state.hello ? 60 : 10) -
+                        GLib.get_monotonic_time() / 1000000;
+                    if (remaining > 0) schedule(Math.max(1, Math.ceil(remaining)));
+                    else this._drop(peer, conn);
+                    return GLib.SOURCE_REMOVE;
+                });
+                this._streams.set(conn, timer);
+            };
+            schedule(state.hello ? 60 : 10);
+        }
+        // Bound each event-loop turn while amortizing native callbacks over
+        // several wire frames; MAX_LINE still bounds every individual line.
+        input.read_bytes_async(16 * 1024, GLib.PRIORITY_DEFAULT, this._cancel, (stream, result) => {
             let bytes;
             try {
                 bytes = stream.read_bytes_finish(result).get_data();
@@ -702,6 +952,7 @@ var ChatService = class ChatService {
                 this._drop(peer, conn);
                 return;
             }
+            state.lastRead = GLib.get_monotonic_time() / 1000000;
             for (const byte of bytes) {
                 if (byte !== 10) {
                     pending.push(byte);
@@ -711,19 +962,6 @@ var ChatService = class ChatService {
                     }
                     continue;
                 }
-                const time = GLib.get_monotonic_time() / 1000000;
-                peer.rate ||= { time, count: 0 };
-                for (const rate of [peer.rate, this._rate]) {
-                    if (time - rate.time >= 10) {
-                        rate.time = time;
-                        rate.count = 0;
-                    }
-                    rate.count++;
-                }
-                if (peer.rate.count > 20 || this._rate.count > 100) {
-                    this._drop(peer, conn);
-                    return;
-                }
                 let text;
                 try {
                     text = ByteArray.toString(Uint8Array.from(pending)).replace(/\r$/, '');
@@ -732,6 +970,10 @@ var ChatService = class ChatService {
                     return;
                 }
                 pending = [];
+                if (!this._allowLine(peer, conn, text)) {
+                    this._drop(peer, conn);
+                    return;
+                }
                 if (!this._handleLine(peer, conn, text)) {
                     peer.queue = [];
                     this._record(
@@ -747,38 +989,160 @@ var ChatService = class ChatService {
         });
     }
 
-    _flush(peer) {
-        if (peer.writing || !peer.queue.length || !peer.connections.length) return;
-        const conn = peer.connections.find((connection) => this._authorized(peer, connection));
-        if (!conn) return;
-        const text = peer.queue.shift();
-        peer.writing = true;
-        conn.get_output_stream().write_all_async(
-            ByteArray.fromString(JSON.stringify({ type: 'message', text }) + '\n'),
-            GLib.PRIORITY_DEFAULT,
-            this._cancel,
-            (stream, result) => {
-                let ok = true;
-                try {
-                    stream.write_all_finish(result);
-                } catch (_) {
-                    ok = false;
-                }
-                if (this._destroyed || !this._alive(peer)) return;
-                peer.writing = false;
-                if (!ok) {
-                    this._record(peer, 'sys', `Send failed: ${text}`);
-                    this._drop(peer, conn);
-                }
-                this._flush(peer);
+    _allowLine(peer, conn, text) {
+        let frame;
+        try {
+            frame = JSON.parse(text);
+        } catch (_) {}
+        // Chunks are bounded by their authenticated transfer, sequence, bytes
+        // and absolute deadline; they are not separate user chat messages.
+        if (
+            frame?.type === 'image-chunk' &&
+            this._incomingImages.has(conn) &&
+            this._imageCapable(peer, conn)
+        )
+            return true;
+        const time = GLib.get_monotonic_time() / 1000000;
+        peer.rate ||= { time, count: 0 };
+        for (const rate of [peer.rate, this._rate]) {
+            if (time - rate.time >= 10) {
+                rate.time = time;
+                rate.count = 0;
             }
-        );
+            rate.count++;
+        }
+        return peer.rate.count <= 20 && this._rate.count <= 100;
+    }
+
+    _clearSendingImage(peer) {
+        if (peer.sendingImage?.timer) GLib.source_remove(peer.sendingImage.timer);
+        peer.sendingImage = null;
+    }
+
+    _flush(peer) {
+        if (
+            !this._alive(peer) ||
+            peer.writing ||
+            (!peer.sendingImage && !peer.queue.length) ||
+            !peer.connections.length
+        )
+            return;
+        const item = peer.sendingImage || peer.queue[0];
+        const imageItem = !!peer.sendingImage || item?.kind === 'image';
+        const conn =
+            peer.sendingImage?.conn ||
+            peer.connections.find((connection) =>
+                imageItem
+                    ? this._imageCapable(peer, connection)
+                    : this._authorized(peer, connection)
+            );
+        if (!conn) return;
+        if (!this._authorized(peer, conn)) return;
+        let frame, wire, advance, description;
+        if (imageItem) {
+            if (!peer.sendingImage) {
+                const queued = peer.queue.shift();
+                const transfer = {
+                    image: queued.image,
+                    conn,
+                    id: GLib.uuid_string_random(),
+                    phase: 'begin',
+                    index: 0,
+                    offset: 0,
+                    timer: 0,
+                };
+                transfer.timer = GLib.timeout_add_seconds(
+                    GLib.PRIORITY_DEFAULT,
+                    IMAGE_TIMEOUT,
+                    () => {
+                        transfer.timer = 0;
+                        this._record(peer, 'sys', 'Image sending timed out. Try sending it again.');
+                        this._drop(peer, conn);
+                        return GLib.SOURCE_REMOVE;
+                    }
+                );
+                peer.sendingImage = transfer;
+            }
+            const transfer = peer.sendingImage;
+            description = imageModel().summary(transfer.image);
+            if (transfer.phase === 'begin') {
+                const { mime, size, name } = transfer.image;
+                frame = { type: 'image-begin', id: transfer.id, mime, size, name };
+                advance = () => {
+                    transfer.phase = 'data';
+                };
+            } else if (transfer.phase === 'data') {
+                const lines = [];
+                let offset = transfer.offset,
+                    index = transfer.index;
+                for (
+                    let count = 0;
+                    count < IMAGE_WRITE_CHUNKS && offset < transfer.image.data.length;
+                    count++
+                ) {
+                    const data = transfer.image.data.slice(offset, offset + IMAGE_CHUNK);
+                    lines.push(
+                        JSON.stringify({ type: 'image-chunk', id: transfer.id, index, data })
+                    );
+                    offset += data.length;
+                    index++;
+                }
+                wire = lines.join('\n') + '\n';
+                advance = () => {
+                    transfer.offset = offset;
+                    transfer.index = index;
+                    if (transfer.offset === transfer.image.data.length) transfer.phase = 'end';
+                };
+            } else {
+                frame = { type: 'image-end', id: transfer.id };
+                advance = () => {
+                    this._clearSendingImage(peer);
+                    this.emit('peer-changed', peer.key);
+                };
+            }
+        } else {
+            const text = peer.queue.shift();
+            frame = { type: 'message', text };
+            description = text;
+            advance = () => {};
+        }
+        const state = this._handshakes.get(conn);
+        state.output ||= conn.get_output_stream();
+        const write = {
+            output: state.output,
+            bytes: new GLib.Bytes(ByteArray.fromString(wire || JSON.stringify(frame) + '\n')),
+        };
+        peer.writing = true;
+        peer.activeWrite = write;
+        peer.writeConnection = conn;
+        const completed = (error) => {
+            write.bytes = null;
+            if (this._destroyed || !this._alive(peer) || peer.activeWrite !== write) return;
+            peer.writing = false;
+            peer.activeWrite = null;
+            peer.writeConnection = null;
+            if (error) {
+                this._record(peer, 'sys', `Send failed: ${description}`);
+                this._drop(peer, conn);
+            } else advance();
+            this._flush(peer);
+        };
+        writeBytes(write.output, write.bytes, this._cancel, completed);
     }
 
     _drop(peer, conn) {
         const index = peer.connections.indexOf(conn);
         if (index < 0) return;
         const authorized = this._handshakes.get(conn)?.ready === true;
+        if (peer.sendingImage?.conn === conn) {
+            this._clearSendingImage(peer);
+            this._record(peer, 'sys', 'Image transfer interrupted. Try sending it again.');
+        }
+        if (peer.writeConnection === conn) {
+            peer.activeWrite = null;
+            peer.writeConnection = null;
+            peer.writing = false;
+        }
         peer.connections.splice(index, 1);
         this._connections--;
         this._closeStream(conn);
@@ -807,10 +1171,24 @@ var ChatService = class ChatService {
                 );
             // Only an explicit open/send may reconnect; a rejected handshake must never loop.
         }
+        if (
+            peer.connections.length &&
+            !peer.connections.some((connection) => this._imageCapable(peer, connection))
+        ) {
+            const remaining = peer.queue.filter((item) => item?.kind !== 'image');
+            if (remaining.length !== peer.queue.length)
+                this._record(
+                    peer,
+                    'sys',
+                    'Queued image was not sent: the remaining connection does not support images.'
+                );
+            peer.queue = remaining;
+        }
         this.emit('peer-changed', peer.key);
     }
 
     _closeStream(conn) {
+        this._clearImageTransfer(conn);
         this._handshakes.delete(conn);
         const timer = this._streams.get(conn);
         if (timer) GLib.source_remove(timer);

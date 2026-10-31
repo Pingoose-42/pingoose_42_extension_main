@@ -81,6 +81,8 @@ var ChatPanel = class ChatPanel {
         if (this._settings.get_boolean('expand-chat') !== this._expanded)
             this._settings.set_boolean('expand-chat', this._expanded);
         this._favorites?.sync();
+        this._attachments?.refresh();
+        this._attachments?.setVisible(this._indicator.menu.isOpen && this._chatUi.visible);
         this._indicator.syncPanelLayout?.();
         if (
             this._expanded &&
@@ -164,6 +166,7 @@ var ChatPanel = class ChatPanel {
         );
     }
     reset() {
+        this._attachments?.reset();
         this._favorites?.reset();
         this._chatBannerSource?.destroy();
         this._chatBannerSource = null;
@@ -187,12 +190,15 @@ var ChatPanel = class ChatPanel {
     }
 
     close() {
+        if (!this._attachments?.suspendingMenu)
+            this._attachments?.cancel('Image selection cancelled.');
         if (this._favorites) this._favorites.expanded = false;
         this._expanded = false;
         this.sync();
     }
 
     destroy() {
+        this._attachments?.destroy();
         this.connection.destroy();
         this._indicator.menu.disconnect(this._menuSignal);
         this._favorites?.destroy();
@@ -233,6 +239,7 @@ var ChatPanel = class ChatPanel {
         ui.item = item;
         toggle.connect('clicked', () => {
             this._expanded = !this._expanded;
+            if (!this._expanded) this._attachments?.cancel('Image selection cancelled.');
             if (this._expanded) indicator.bringPanelNearMain(root);
             if (this._expanded && this._chat.state === 'stopped') this._chat.start();
             this.sync();
@@ -262,10 +269,7 @@ var ChatPanel = class ChatPanel {
             accessible_name: 'Close Cluster Chat',
             style_class: 'pingoose-dismiss',
         });
-        dismiss.connect('clicked', () => {
-            this._expanded = false;
-            this.sync();
-        });
+        dismiss.connect('clicked', () => this.close());
         header.add_child(dismiss);
         root.add_child(header);
         root.add_child(ui.status);
@@ -330,7 +334,7 @@ var ChatPanel = class ChatPanel {
         scroll.add_actor(ui.log);
         root.add_child(scroll);
         // Follow new messages only while the view is already at the bottom.
-        const adjustment = scroll.vscroll.adjustment;
+        const adjustment = (ui.adjustment = scroll.vscroll.adjustment);
         adjustment.connect('notify::value', () => {
             ui.stick = adjustment.value + adjustment.page_size >= adjustment.upper - 4;
         });
@@ -370,9 +374,21 @@ var ChatPanel = class ChatPanel {
                 y_align: Clutter.ActorAlign.CENTER,
             })
         );
+        this._attachments = new Me.imports.ui.chatAttachments.Controller({
+            menu: indicator.menu,
+            getTarget: () => ({
+                service: this._chat,
+                key: this._chatActive,
+                peer: this._chat.peer(this._chatActive),
+                available: !this._indicator.loginOnly,
+            }),
+            onPreviewReady: () => this._followChatBottom(),
+        });
+        inputRow.add_child(this._attachments.button);
         inputRow.add_child(ui.entry);
         inputRow.add_child(ui.send);
         root.add_child(inputRow);
+        root.add_child(this._attachments.feedback);
         indicator.addPanel(root, { key: 'chat-panel-height', scroll });
         const submit = () => {
             if (!this._chatActive || !this._chat.send(this._chatActive, ui.entry.text)) return;
@@ -382,6 +398,7 @@ var ChatPanel = class ChatPanel {
         ui.send.connect('clicked', submit);
         this._bindChatSignals();
         this._menuSignal = indicator.menu.connect('open-state-changed', (_menu, open) => {
+            this._attachments.onMenuState(open);
             this.connection.resetInput();
             this._favorites?.resetInput();
             this.sync();
@@ -394,17 +411,22 @@ var ChatPanel = class ChatPanel {
     }
 
     _bindChatSignals() {
-        this._chat.connect('availability-changed', () => this.onAvailabilityChanged?.());
+        this._chat.connect('availability-changed', () => {
+            this._attachments?.refresh();
+            this.onAvailabilityChanged?.();
+        });
         this._chat.connect('connection-failed', (_chat, key, reason) =>
             this.connection.failed(key, reason)
         );
         this._chat.connect('connection-ready', (_chat, key) => this.connection.ready(key));
         this._chat.connect('server-state', () => this._renderChatStatus());
         this._chat.connect('peer-changed', () => {
+            this._attachments?.refresh();
             this._renderChatChips();
             this._updatePanelLabel();
         });
         this._chat.connect('message', (_chat, key, entry) => this._chatMessage(key, entry));
+        this._chat.connect('image-history-pruned', () => this._attachments?.prune());
     }
 
     _renderChatStatus() {
@@ -512,6 +534,7 @@ var ChatPanel = class ChatPanel {
         ui.stick = true;
         const peer = this._chatActive ? this._chat.peer(this._chatActive) : null;
         ui.entry.reactive = ui.send.reactive = !!peer;
+        this._attachments?.refresh();
         ui.entry.hint_text = peer ? `Message ${peer.key}…` : 'No connected chats.';
         if (!peer?.history.length) {
             ui.placeholder = wrapLabel(
@@ -552,21 +575,33 @@ var ChatPanel = class ChatPanel {
             x_align: align,
             style_class: `pingoose-chat-bubble pingoose-chat-bubble-${out ? 'out' : 'in'}`,
         });
-        // Plain text only: peer input must never be parsed as Pango markup.
-        const message = wrapLabel(
-            new St.Label({
-                text: entry.text,
-                reactive: true,
-                can_focus: true,
-                style_class: 'pingoose-chat-text',
-            })
-        );
-        Me.imports.ui.selectableText.attach(message);
-        bubble.add_child(message);
+        if (entry.kind === 'image') bubble.add_child(this._attachments.preview(entry));
+        else {
+            // Plain text only: peer input must never be parsed as Pango markup.
+            const message = wrapLabel(
+                new St.Label({
+                    text: entry.text,
+                    reactive: true,
+                    can_focus: true,
+                    style_class: 'pingoose-chat-text',
+                })
+            );
+            Me.imports.ui.selectableText.attach(message);
+            bubble.add_child(message);
+        }
         bubble.add_child(
             new St.Label({ text: entry.time, x_align: align, style_class: 'pingoose-chat-time' })
         );
         ui.log.add_child(bubble);
+    }
+
+    _followChatBottom() {
+        const ui = this._chatUi;
+        if (ui?.stick && ui.adjustment)
+            ui.adjustment.value = Math.max(
+                ui.adjustment.lower,
+                ui.adjustment.upper - ui.adjustment.page_size
+            );
     }
 
     _isViewingChat(key) {
@@ -635,6 +670,8 @@ var ChatPanel = class ChatPanel {
     }
 
     _selectChat(key) {
+        if (key !== this._chatActive)
+            this._attachments?.cancel('The chat changed. The image was not sent.');
         this._chatActive = key;
         this._chat.markRead(key);
         this._renderChat();

@@ -15,22 +15,30 @@ service.configure({
     grants: [{ id: 'self-test', seat, login, testSelf: true, expires: Date.now() + 600000 }],
 });
 const loop = new GLib.MainLoop(null, false);
-let received = false;
+let delivered = false;
 const timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
     loop.quit();
     return GLib.SOURCE_REMOVE;
 });
-service.connect('message', (_service, key, entry) => {
-    if (entry.dir === 'in' && entry.text === 'Self test') {
-        received = true;
+const handleLine = service._handleLine.bind(service);
+service._handleLine = (peer, conn, text) => {
+    const accepted = handleLine(peer, conn, text);
+    if (accepted && JSON.parse(text).text === 'Self test') {
+        delivered = true;
         loop.quit();
     }
-});
+    return accepted;
+};
 service.start();
 service.open(seat, 'self-test');
 service.send(seat, 'Self test');
 loop.run();
-if (received) GLib.source_remove(timer);
+if (delivered) GLib.source_remove(timer);
+const peer = service.peer(seat);
+if (peer.history.filter((entry) => entry.text === 'Self test').length !== 1 || peer.unread !== 0)
+    throw Error('Self chat must keep one outgoing record without unread notification');
 service.destroy();
-if (!received) throw Error('Self chat message was not delivered');
-print('PASS: self-only evaluation chat over loopback using actual admission and handshake');
+if (!delivered) throw Error('Self chat message was not delivered');
+print(
+    'PASS: self-only evaluation chat uses actual loopback admission, records once and suppresses received echo'
+);

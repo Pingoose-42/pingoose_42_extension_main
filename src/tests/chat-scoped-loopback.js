@@ -9,9 +9,11 @@ const reserve = new Gio.SocketListener();
 const port = reserve.add_any_inet_port(null);
 reserve.close();
 const service = new Chat.ChatService(port);
+const sender = new Chat.ChatService(port);
 const seat = 'c1r1s1',
     login = GLib.get_user_name();
 service.configure({ active: true, general: true, login, grants: [] });
+sender.configure({ active: true, general: true, login, grants: [] });
 service._accept = (conn) => {
     service._connections++;
     service._attach(service._peer(seat, '127.0.0.1'), conn);
@@ -42,12 +44,13 @@ service.connect('message', (_service, key, entry) => {
     loop.quit();
 });
 service.start();
-const peer = service._peer(seat, '127.0.0.1');
+const peer = sender._peer(seat, '127.0.0.1');
 peer.scope = 'general';
-assert(service.send(seat, 'Scoped message'), 'authorized local sender queues message');
+assert(sender.send(seat, 'Scoped message'), 'authorized local sender queues message');
 loop.run();
 if (!failed) GLib.source_remove(timeout);
 service.destroy();
+sender.destroy();
 assert(!failed && received === 1, 'authenticated handshake and message delivered');
 const expiry = new Chat.ChatService();
 expiry.configure({
