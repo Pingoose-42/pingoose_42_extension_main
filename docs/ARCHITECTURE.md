@@ -100,6 +100,10 @@ npm run format
 
 ## 모듈 경계 유지
 
+테마 ID·표시 이름·기본 명암·패널 배경색은 `models/themes.js`가 관리합니다. `preferences/general`은 같은 테마 목록을 사용하고, `ui/settings`는 모든 기존 테마 클래스를 제거한 뒤 기본 명암 클래스와 선택한 테마 클래스를 적용합니다. `stylesheet.css`의 팔레트별 규칙은 입력칸·선택·버튼·카드 색상만 바꾸고 기존 배치 치수는 유지합니다.
+
+`panel-transparency`는 0~80%이며 기본값 0은 불투명입니다. `ui/layout.applyPanelAppearance()`가 메인 ScrollView와 각 사이드 패널의 실제 배경 루트에만 RGBA 색을 지정합니다. 바깥 frame의 간격, 내부 scroll의 높이 제한, 액터 전체의 opacity와 애니메이션은 별개로 유지합니다. 새 테마의 패널 배경색을 바꿀 때는 CSS의 불투명 기본색과 `models/themes.js`의 RGB 값을 함께 맞춥니다. `selectableText`는 St.Label이 자동 적용하지 않는 선택색을 theme node에서 읽으며, 아직 테마가 연결되지 않은 경우 기존 대비색을 사용합니다.
+
 `worker/webview.js`에는 인증 세션과 주기 조율을 남깁니다. 조회별 웹뷰 수명은 수집기에, 상태 변환은 모델에, 입력 액터는 입력 컴포넌트에 둡니다. 파일 크기를 줄이기 위해 원래 객체 전체를 주입하거나 prototype 믹스인을 다시 도입하지 않습니다.
 
 플랫폼 대체 객체를 사용하는 테스트는 상태 전이와 정리를 검증합니다. 실제 폰트 배치는 `gjs src/tests/note-text-layout.js`로 별도 검사할 수 있습니다. GNOME Shell의 실제 팝업·IME·창 배치는 설치 후 UI 검증 대상이며, 단위 테스트 통과만으로 실사용 UI 검증을 대체하지 않습니다.

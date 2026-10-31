@@ -8,11 +8,26 @@ function attach(message) {
     text.set_editable(false);
     // St.Label does not apply St.Entry's selection CSS to its Clutter.Text.
     const selectionColors = () => {
+        // attach can run before the label joins the stage. St emits style-changed
+        // before painting once its theme node is available.
+        const node = message.peek_theme_node();
+        const [hasBackground, background] = node?.lookup_color(
+            'selection-background-color',
+            true
+        ) || [false, null];
+        const [hasForeground, foreground] = node?.lookup_color('selected-color', true) || [
+            false,
+            null,
+        ];
         text.set_selection_color(
-            new Clutter.Color({ red: 133, green: 214, blue: 203, alpha: 255 })
+            hasBackground
+                ? background
+                : new Clutter.Color({ red: 133, green: 214, blue: 203, alpha: 255 })
         );
         text.set_selected_text_color(
-            new Clutter.Color({ red: 16, green: 35, blue: 32, alpha: 255 })
+            hasForeground
+                ? foreground
+                : new Clutter.Color({ red: 16, green: 35, blue: 32, alpha: 255 })
         );
     };
     message.connect('style-changed', selectionColors);

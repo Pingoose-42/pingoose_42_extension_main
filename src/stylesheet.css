@@ -1195,3 +1195,936 @@
 .pingoose-light .pingoose-profile-name {
     color: #000000;
 }
+
+/* Entry colors belong to the extension theme, including connection and note
+ * editors. GNOME 42 StEntry uses :focus, :insensitive, StLabel.hint-text,
+ * caret-color, selection-background-color and selected-color (st-entry.c).
+ * Only paint properties change here; Shell/theme border widths stay intact. */
+.pingoose-dark StEntry,
+.pingoose-light StEntry {
+    background-image: none;
+    background-gradient-direction: none;
+    box-shadow: none;
+    text-shadow: none;
+}
+.pingoose-dark .popup-menu-content,
+.pingoose-dark .pingoose-chat-panel,
+.pingoose-dark .pingoose-chat-text {
+    selection-background-color: #2f7f74;
+    selected-color: #ffffff;
+}
+.pingoose-light .popup-menu-content,
+.pingoose-light .pingoose-chat-panel,
+.pingoose-light .pingoose-chat-text {
+    selection-background-color: #16796b;
+    selected-color: #ffffff;
+}
+
+/* Dark entries keep typed text, hints and selection readable. */
+.pingoose-dark StEntry,
+.pingoose-dark .pingoose-chat-entry {
+    background-color: #171b20;
+    color: #edf0f4;
+    border-color: #5b6774;
+    caret-color: #edf0f4;
+    selection-background-color: #2f7f74;
+    selected-color: #ffffff;
+}
+.pingoose-dark StEntry:hover {
+    background-color: #202930;
+    color: #edf0f4;
+    border-color: #85d6cb;
+}
+.pingoose-dark StEntry:focus,
+.pingoose-dark StEntry:focus:hover {
+    background-color: #202930;
+    color: #edf0f4;
+    border-color: #85d6cb;
+}
+.pingoose-dark StEntry StLabel.hint-text {
+    color: #a8b4c0;
+}
+.pingoose-dark StEntry:insensitive,
+.pingoose-dark StEntry:insensitive:hover,
+.pingoose-dark StEntry:insensitive:focus {
+    background-color: #2d343c;
+    color: #aab6c2;
+    border-color: #5b6774;
+    caret-color: #aab6c2;
+}
+.pingoose-dark StEntry:insensitive StLabel.hint-text {
+    color: #aab6c2;
+}
+.pingoose-dark StEntry.pingoose-chat-entry-error,
+.pingoose-dark StEntry.pingoose-chat-entry-error:focus,
+.pingoose-dark StEntry.pingoose-chat-entry-error:hover {
+    border-color: #ff9696;
+}
+
+/* Light entries keep typed text, hints and selection readable. */
+.pingoose-light StEntry,
+.pingoose-light .pingoose-chat-entry {
+    background-color: #ffffff;
+    color: #20252c;
+    border-color: #9aa7b3;
+    caret-color: #20252c;
+    selection-background-color: #16796b;
+    selected-color: #ffffff;
+}
+.pingoose-light StEntry:hover {
+    background-color: #ffffff;
+    color: #20252c;
+    border-color: #16796b;
+}
+.pingoose-light StEntry:focus,
+.pingoose-light StEntry:focus:hover {
+    background-color: #ffffff;
+    color: #20252c;
+    border-color: #16796b;
+}
+.pingoose-light StEntry StLabel.hint-text {
+    color: #596673;
+}
+.pingoose-light StEntry:insensitive,
+.pingoose-light StEntry:insensitive:hover,
+.pingoose-light StEntry:insensitive:focus {
+    background-color: #e2e7eb;
+    color: #596673;
+    border-color: #9aa7b3;
+    caret-color: #596673;
+}
+.pingoose-light StEntry:insensitive StLabel.hint-text {
+    color: #596673;
+}
+.pingoose-light StEntry.pingoose-chat-entry-error,
+.pingoose-light StEntry.pingoose-chat-entry-error:focus,
+.pingoose-light StEntry.pingoose-chat-entry-error:hover {
+    border-color: #b62343;
+}
+
+/* Pink entries keep typed text, hints and selection readable. */
+.pingoose-light.pingoose-pink StEntry,
+.pingoose-light.pingoose-pink .pingoose-chat-entry {
+    background-color: #ffffff;
+    color: #452538;
+    border-color: #c388a3;
+    caret-color: #452538;
+    selection-background-color: #9e315f;
+    selected-color: #ffffff;
+}
+.pingoose-light.pingoose-pink StEntry:hover {
+    background-color: #fff8fb;
+    color: #452538;
+    border-color: #9e315f;
+}
+.pingoose-light.pingoose-pink StEntry:focus,
+.pingoose-light.pingoose-pink StEntry:focus:hover {
+    background-color: #fff8fb;
+    color: #452538;
+    border-color: #9e315f;
+}
+.pingoose-light.pingoose-pink StEntry StLabel.hint-text {
+    color: #79556a;
+}
+.pingoose-light.pingoose-pink StEntry:insensitive,
+.pingoose-light.pingoose-pink StEntry:insensitive:hover,
+.pingoose-light.pingoose-pink StEntry:insensitive:focus {
+    background-color: #eed8e2;
+    color: #79556a;
+    border-color: #c388a3;
+    caret-color: #79556a;
+}
+.pingoose-light.pingoose-pink StEntry:insensitive StLabel.hint-text {
+    color: #79556a;
+}
+.pingoose-light.pingoose-pink StEntry.pingoose-chat-entry-error,
+.pingoose-light.pingoose-pink StEntry.pingoose-chat-entry-error:focus,
+.pingoose-light.pingoose-pink StEntry.pingoose-chat-entry-error:hover {
+    border-color: #b62343;
+}
+
+/* Halloween entries keep typed text, hints and selection readable. */
+.pingoose-dark.pingoose-halloween StEntry,
+.pingoose-dark.pingoose-halloween .pingoose-chat-entry {
+    background-color: #17121d;
+    color: #fff0df;
+    border-color: #73556f;
+    caret-color: #fff0df;
+    selection-background-color: #f5a04e;
+    selected-color: #27150a;
+}
+.pingoose-dark.pingoose-halloween StEntry:hover {
+    background-color: #2b2031;
+    color: #fff0df;
+    border-color: #ffb86b;
+}
+.pingoose-dark.pingoose-halloween StEntry:focus,
+.pingoose-dark.pingoose-halloween StEntry:focus:hover {
+    background-color: #2b2031;
+    color: #fff0df;
+    border-color: #ffb86b;
+}
+.pingoose-dark.pingoose-halloween StEntry StLabel.hint-text {
+    color: #c9b5cd;
+}
+.pingoose-dark.pingoose-halloween StEntry:insensitive,
+.pingoose-dark.pingoose-halloween StEntry:insensitive:hover,
+.pingoose-dark.pingoose-halloween StEntry:insensitive:focus {
+    background-color: #3c3042;
+    color: #c9b5cd;
+    border-color: #73556f;
+    caret-color: #c9b5cd;
+}
+.pingoose-dark.pingoose-halloween StEntry:insensitive StLabel.hint-text {
+    color: #c9b5cd;
+}
+.pingoose-dark.pingoose-halloween StEntry.pingoose-chat-entry-error,
+.pingoose-dark.pingoose-halloween StEntry.pingoose-chat-entry-error:focus,
+.pingoose-dark.pingoose-halloween StEntry.pingoose-chat-entry-error:hover {
+    border-color: #ff9696;
+}
+
+/* Neon entries keep typed text, hints and selection readable. */
+.pingoose-dark.pingoose-neon StEntry,
+.pingoose-dark.pingoose-neon .pingoose-chat-entry {
+    background-color: #0b141c;
+    color: #e2faff;
+    border-color: #36596b;
+    caret-color: #e2faff;
+    selection-background-color: #5de7d2;
+    selected-color: #09252a;
+}
+.pingoose-dark.pingoose-neon StEntry:hover {
+    background-color: #132633;
+    color: #e2faff;
+    border-color: #64f4da;
+}
+.pingoose-dark.pingoose-neon StEntry:focus,
+.pingoose-dark.pingoose-neon StEntry:focus:hover {
+    background-color: #132633;
+    color: #e2faff;
+    border-color: #64f4da;
+}
+.pingoose-dark.pingoose-neon StEntry StLabel.hint-text {
+    color: #9ab7c4;
+}
+.pingoose-dark.pingoose-neon StEntry:insensitive,
+.pingoose-dark.pingoose-neon StEntry:insensitive:hover,
+.pingoose-dark.pingoose-neon StEntry:insensitive:focus {
+    background-color: #243b49;
+    color: #aac6d1;
+    border-color: #36596b;
+    caret-color: #aac6d1;
+}
+.pingoose-dark.pingoose-neon StEntry:insensitive StLabel.hint-text {
+    color: #aac6d1;
+}
+.pingoose-dark.pingoose-neon StEntry.pingoose-chat-entry-error,
+.pingoose-dark.pingoose-neon StEntry.pingoose-chat-entry-error:focus,
+.pingoose-dark.pingoose-neon StEntry.pingoose-chat-entry-error:hover {
+    border-color: #ff9db4;
+}
+
+/* Light surfaces need dark secondary text even under a dark system theme. */
+.pingoose-light .pingoose-editor-lines,
+.pingoose-light .pingoose-slot-duration,
+.pingoose-light .pingoose-slot-range-divider,
+.pingoose-light .pingoose-slot-step-button,
+.pingoose-light .pingoose-agenda-subscribed,
+.pingoose-light .pingoose-chat-dot-off {
+    color: #596673;
+}
+.pingoose-light .pingoose-maintenance-body,
+.pingoose-light .pingoose-project-item.pingoose-project-selected,
+.pingoose-light .pingoose-project-item.pingoose-project-selected StLabel {
+    color: #20252c;
+}
+.pingoose-light .pingoose-chat-dot-on,
+.pingoose-light .pingoose-agenda-subscribe {
+    color: #16796b;
+}
+.pingoose-light .pingoose-chat-dot-wait,
+.pingoose-light .pingoose-maintenance-title {
+    color: #916b00;
+}
+.pingoose-light .pingoose-slot-error,
+.pingoose-light .pingoose-slot-matched,
+.pingoose-light .pingoose-agenda-feedback-required,
+.pingoose-light .pingoose-agenda-unsubscribe {
+    color: #b62343;
+}
+
+/* Pink palette. Background transparency is applied only to the
+ * panel roots at runtime; controls and message surfaces retain their contrast. */
+.pingoose-light.pingoose-pink .popup-menu-content,
+.pingoose-light.pingoose-pink .pingoose-chat-panel {
+    background-color: #fff1f6;
+    color: #452538;
+    border-color: #c388a3;
+    selection-background-color: #9e315f;
+    selected-color: #ffffff;
+}
+.pingoose-light.pingoose-pink .popup-menu-item,
+.pingoose-light.pingoose-pink .pingoose-heading,
+.pingoose-light.pingoose-pink .pingoose-profile-name,
+.pingoose-light.pingoose-pink .pingoose-project-heading,
+.pingoose-light.pingoose-pink .pingoose-agenda-emphasis,
+.pingoose-light.pingoose-pink .pingoose-counterpart-link,
+.pingoose-light.pingoose-pink .pingoose-maintenance-body,
+.pingoose-light.pingoose-pink .pingoose-service-picture {
+    color: #452538;
+}
+.pingoose-light.pingoose-pink .pingoose-profile-login,
+.pingoose-light.pingoose-pink .pingoose-profile-caption,
+.pingoose-light.pingoose-pink .pingoose-card-time,
+.pingoose-light.pingoose-pink .pingoose-person-seat,
+.pingoose-light.pingoose-pink .pingoose-evaluation-time,
+.pingoose-light.pingoose-pink .pingoose-chat-time,
+.pingoose-light.pingoose-pink .pingoose-chat-system,
+.pingoose-light.pingoose-pink .pingoose-chat-empty,
+.pingoose-light.pingoose-pink .pingoose-chat-dot-off,
+.pingoose-light.pingoose-pink .pingoose-editor-lines,
+.pingoose-light.pingoose-pink .pingoose-agenda-subscribed,
+.pingoose-light.pingoose-pink .pingoose-slot-duration,
+.pingoose-light.pingoose-pink .pingoose-slot-range-divider,
+.pingoose-light.pingoose-pink .pingoose-slot-step-button,
+.pingoose-light.pingoose-pink .pingoose-counterpart-link.pingoose-counterpart-nick {
+    color: #79556a;
+}
+.pingoose-light.pingoose-pink .pingoose-card,
+.pingoose-light.pingoose-pink .pingoose-evaluation-card,
+.pingoose-light.pingoose-pink .pingoose-service-card,
+.pingoose-light.pingoose-pink .pingoose-project-note,
+.pingoose-light.pingoose-pink .pingoose-favorite-card,
+.pingoose-light.pingoose-pink .pingoose-maintenance-notice,
+.pingoose-light.pingoose-pink .pingoose-slot-create-card,
+.pingoose-light.pingoose-pink .pingoose-avatar {
+    background-color: #f6dfe9;
+    color: #452538;
+}
+.pingoose-light.pingoose-pink .pingoose-clear-button,
+.pingoose-light.pingoose-pink .pingoose-visit-intra,
+.pingoose-light.pingoose-pink .pingoose-login-button,
+.pingoose-light.pingoose-pink .pingoose-feedback-button,
+.pingoose-light.pingoose-pink .pingoose-chat-add,
+.pingoose-light.pingoose-pink .pingoose-favorite-action,
+.pingoose-light.pingoose-pink .pingoose-maintenance-refresh,
+.pingoose-light.pingoose-pink .pingoose-service-visit {
+    background-color: #f1ccdc;
+    color: #452538;
+}
+.pingoose-light.pingoose-pink .pingoose-clear-button:hover,
+.pingoose-light.pingoose-pink .pingoose-clear-button:focus,
+.pingoose-light.pingoose-pink .pingoose-visit-intra:hover,
+.pingoose-light.pingoose-pink .pingoose-visit-intra:focus,
+.pingoose-light.pingoose-pink .pingoose-login-button:hover,
+.pingoose-light.pingoose-pink .pingoose-login-button:focus,
+.pingoose-light.pingoose-pink .pingoose-feedback-button:hover,
+.pingoose-light.pingoose-pink .pingoose-feedback-button:focus,
+.pingoose-light.pingoose-pink .pingoose-chat-add:hover,
+.pingoose-light.pingoose-pink .pingoose-chat-add:focus,
+.pingoose-light.pingoose-pink .pingoose-favorite-action:hover,
+.pingoose-light.pingoose-pink .pingoose-favorite-action:focus,
+.pingoose-light.pingoose-pink .pingoose-maintenance-refresh:hover,
+.pingoose-light.pingoose-pink .pingoose-maintenance-refresh:focus,
+.pingoose-light.pingoose-pink .pingoose-service-visit:hover,
+.pingoose-light.pingoose-pink .pingoose-service-visit:focus,
+.pingoose-light.pingoose-pink .popup-menu-item:hover,
+.pingoose-light.pingoose-pink .popup-menu-item:focus,
+.pingoose-light.pingoose-pink .pingoose-settings-button:hover,
+.pingoose-light.pingoose-pink .pingoose-settings-button:focus,
+.pingoose-light.pingoose-pink .pingoose-note-options:hover,
+.pingoose-light.pingoose-pink .pingoose-note-options:focus,
+.pingoose-light.pingoose-pink .pingoose-project-heading:hover,
+.pingoose-light.pingoose-pink .pingoose-project-heading:focus,
+.pingoose-light.pingoose-pink .pingoose-chat-chip-button:hover,
+.pingoose-light.pingoose-pink .pingoose-chat-chip-button:focus,
+.pingoose-light.pingoose-pink .pingoose-todo-check:hover,
+.pingoose-light.pingoose-pink .pingoose-todo-check:focus,
+.pingoose-light.pingoose-pink .pingoose-slot-step-button:hover,
+.pingoose-light.pingoose-pink .pingoose-slot-step-button:focus {
+    background-color: #eab9ce;
+    color: #452538;
+}
+.pingoose-light.pingoose-pink .pingoose-clear-button.pingoose-toggle-active,
+.pingoose-light.pingoose-pink .pingoose-visit-intra.pingoose-toggle-active,
+.pingoose-light.pingoose-pink .pingoose-chat-add.pingoose-toggle-active,
+.pingoose-light.pingoose-pink .pingoose-favorite-action.pingoose-toggle-active,
+.pingoose-light.pingoose-pink .pingoose-project-heading.pingoose-toggle-active,
+.pingoose-light.pingoose-pink .pingoose-project-item.pingoose-project-selected,
+.pingoose-light.pingoose-pink .pingoose-chat-chip-active {
+    background-color: #e4a8c2;
+    color: #452538;
+}
+.pingoose-light.pingoose-pink .pingoose-clear-button.pingoose-toggle-active:hover,
+.pingoose-light.pingoose-pink .pingoose-clear-button.pingoose-toggle-active:focus,
+.pingoose-light.pingoose-pink .pingoose-visit-intra.pingoose-toggle-active:hover,
+.pingoose-light.pingoose-pink .pingoose-visit-intra.pingoose-toggle-active:focus,
+.pingoose-light.pingoose-pink .pingoose-chat-add.pingoose-toggle-active:hover,
+.pingoose-light.pingoose-pink .pingoose-chat-add.pingoose-toggle-active:focus,
+.pingoose-light.pingoose-pink .pingoose-favorite-action.pingoose-toggle-active:hover,
+.pingoose-light.pingoose-pink .pingoose-favorite-action.pingoose-toggle-active:focus,
+.pingoose-light.pingoose-pink .pingoose-project-heading.pingoose-toggle-active:hover,
+.pingoose-light.pingoose-pink .pingoose-project-heading.pingoose-toggle-active:focus,
+.pingoose-light.pingoose-pink .pingoose-project-item.pingoose-project-selected:hover,
+.pingoose-light.pingoose-pink .pingoose-project-item.pingoose-project-selected:focus,
+.pingoose-light.pingoose-pink .pingoose-chat-chip-active:hover,
+.pingoose-light.pingoose-pink .pingoose-chat-chip-active:focus {
+    background-color: #dc97b6;
+    color: #452538;
+}
+.pingoose-light.pingoose-pink .pingoose-project-item.pingoose-project-selected StLabel {
+    color: #452538;
+}
+.pingoose-light.pingoose-pink .pingoose-profile-level,
+.pingoose-light.pingoose-pink .pingoose-profile-pace,
+.pingoose-light.pingoose-pink .pingoose-card-title,
+.pingoose-light.pingoose-pink .pingoose-evaluation-title,
+.pingoose-light.pingoose-pink .pingoose-todo-check,
+.pingoose-light.pingoose-pink .pingoose-service-visit,
+.pingoose-light.pingoose-pink .pingoose-slot-step-button:hover,
+.pingoose-light.pingoose-pink .pingoose-slot-step-button:focus {
+    color: #902650;
+}
+.pingoose-light.pingoose-pink .pingoose-progress-fill {
+    background-color: #9e315f;
+}
+.pingoose-light.pingoose-pink .pingoose-progress-track {
+    background-color: rgba(158, 49, 95, 0.2);
+}
+.pingoose-light.pingoose-pink .pingoose-chat-chip,
+.pingoose-light.pingoose-pink .pingoose-slot-stepper {
+    background-color: #f1ccdc;
+    color: #452538;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-chip-active {
+    background-color: #e4a8c2;
+}
+.pingoose-light.pingoose-pink .pingoose-project-divider {
+    background-color: #c388a3;
+}
+.pingoose-light.pingoose-pink .pingoose-logtime-column,
+.pingoose-light.pingoose-pink .pingoose-evaluation-time,
+.pingoose-light.pingoose-pink .pingoose-slot-stepper,
+.pingoose-light.pingoose-pink .pingoose-slot-create-card {
+    border-color: #c388a3;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-scroll {
+    background-color: #f6dfe9;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-bubble-in,
+.pingoose-light.pingoose-pink .pingoose-service-picture {
+    background-color: #ffffff;
+    color: #452538;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-bubble-out,
+.pingoose-light.pingoose-pink .pingoose-chat-send {
+    background-color: #9e315f;
+    color: #ffffff;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-send:hover,
+.pingoose-light.pingoose-pink .pingoose-chat-send:focus {
+    background-color: #86234e;
+    color: #ffffff;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-bubble-out .pingoose-chat-time {
+    color: #ffe1ed;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-text {
+    selection-background-color: #9e315f;
+    selected-color: #ffffff;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-status-ok,
+.pingoose-light.pingoose-pink .pingoose-chat-dot-on,
+.pingoose-light.pingoose-pink .pingoose-agenda-subscribe {
+    color: #246d55;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-status-ok {
+    background-color: rgba(36, 109, 85, 0.15);
+}
+.pingoose-light.pingoose-pink .pingoose-deadline-danger,
+.pingoose-light.pingoose-pink .pingoose-chat-status-err,
+.pingoose-light.pingoose-pink .pingoose-chat-connect-error,
+.pingoose-light.pingoose-pink .pingoose-slot-error,
+.pingoose-light.pingoose-pink .pingoose-slot-matched,
+.pingoose-light.pingoose-pink .pingoose-agenda-feedback-required,
+.pingoose-light.pingoose-pink .pingoose-agenda-unsubscribe {
+    color: #b62343;
+}
+.pingoose-light.pingoose-pink .pingoose-chat-status-err {
+    background-color: rgba(182, 35, 67, 0.15);
+}
+.pingoose-light.pingoose-pink .pingoose-chat-status-err:hover,
+.pingoose-light.pingoose-pink .pingoose-chat-status-err:focus {
+    background-color: rgba(182, 35, 67, 0.25);
+}
+.pingoose-light.pingoose-pink .pingoose-dismiss:hover,
+.pingoose-light.pingoose-pink .pingoose-dismiss:focus,
+.pingoose-light.pingoose-pink .pingoose-chat-chip-close:hover,
+.pingoose-light.pingoose-pink .pingoose-chat-chip-close:focus,
+.pingoose-light.pingoose-pink .pingoose-chat-badge,
+.pingoose-light.pingoose-pink .pingoose-maintenance-failure {
+    background-color: #b62343;
+    color: #ffffff;
+}
+.pingoose-light.pingoose-pink .pingoose-favorite-unavailable,
+.pingoose-light.pingoose-pink .pingoose-maintenance-title,
+.pingoose-light.pingoose-pink .pingoose-chat-dot-wait {
+    color: #7c5b00;
+}
+.pingoose-light.pingoose-pink StButton:insensitive,
+.pingoose-light.pingoose-pink StButton:insensitive:hover,
+.pingoose-light.pingoose-pink StButton:insensitive:focus {
+    background-color: #eed8e2;
+    color: #79556a;
+}
+
+/* Halloween palette. Background transparency is applied only to the
+ * panel roots at runtime; controls and message surfaces retain their contrast. */
+.pingoose-dark.pingoose-halloween .popup-menu-content,
+.pingoose-dark.pingoose-halloween .pingoose-chat-panel {
+    background-color: #211a26;
+    color: #fff0df;
+    border-color: #73556f;
+    selection-background-color: #f5a04e;
+    selected-color: #27150a;
+}
+.pingoose-dark.pingoose-halloween .popup-menu-item,
+.pingoose-dark.pingoose-halloween .pingoose-heading,
+.pingoose-dark.pingoose-halloween .pingoose-profile-name,
+.pingoose-dark.pingoose-halloween .pingoose-project-heading,
+.pingoose-dark.pingoose-halloween .pingoose-agenda-emphasis,
+.pingoose-dark.pingoose-halloween .pingoose-counterpart-link,
+.pingoose-dark.pingoose-halloween .pingoose-maintenance-body,
+.pingoose-dark.pingoose-halloween .pingoose-service-picture {
+    color: #fff0df;
+}
+.pingoose-dark.pingoose-halloween .pingoose-profile-login,
+.pingoose-dark.pingoose-halloween .pingoose-profile-caption,
+.pingoose-dark.pingoose-halloween .pingoose-card-time,
+.pingoose-dark.pingoose-halloween .pingoose-person-seat,
+.pingoose-dark.pingoose-halloween .pingoose-evaluation-time,
+.pingoose-dark.pingoose-halloween .pingoose-chat-time,
+.pingoose-dark.pingoose-halloween .pingoose-chat-system,
+.pingoose-dark.pingoose-halloween .pingoose-chat-empty,
+.pingoose-dark.pingoose-halloween .pingoose-chat-dot-off,
+.pingoose-dark.pingoose-halloween .pingoose-editor-lines,
+.pingoose-dark.pingoose-halloween .pingoose-agenda-subscribed,
+.pingoose-dark.pingoose-halloween .pingoose-slot-duration,
+.pingoose-dark.pingoose-halloween .pingoose-slot-range-divider,
+.pingoose-dark.pingoose-halloween .pingoose-slot-step-button,
+.pingoose-dark.pingoose-halloween .pingoose-counterpart-link.pingoose-counterpart-nick {
+    color: #c9b5cd;
+}
+.pingoose-dark.pingoose-halloween .pingoose-card,
+.pingoose-dark.pingoose-halloween .pingoose-evaluation-card,
+.pingoose-dark.pingoose-halloween .pingoose-service-card,
+.pingoose-dark.pingoose-halloween .pingoose-project-note,
+.pingoose-dark.pingoose-halloween .pingoose-favorite-card,
+.pingoose-dark.pingoose-halloween .pingoose-maintenance-notice,
+.pingoose-dark.pingoose-halloween .pingoose-slot-create-card,
+.pingoose-dark.pingoose-halloween .pingoose-avatar {
+    background-color: #35283b;
+    color: #fff0df;
+}
+.pingoose-dark.pingoose-halloween .pingoose-clear-button,
+.pingoose-dark.pingoose-halloween .pingoose-visit-intra,
+.pingoose-dark.pingoose-halloween .pingoose-login-button,
+.pingoose-dark.pingoose-halloween .pingoose-feedback-button,
+.pingoose-dark.pingoose-halloween .pingoose-chat-add,
+.pingoose-dark.pingoose-halloween .pingoose-favorite-action,
+.pingoose-dark.pingoose-halloween .pingoose-maintenance-refresh,
+.pingoose-dark.pingoose-halloween .pingoose-service-visit {
+    background-color: #46334e;
+    color: #fff0df;
+}
+.pingoose-dark.pingoose-halloween .pingoose-clear-button:hover,
+.pingoose-dark.pingoose-halloween .pingoose-clear-button:focus,
+.pingoose-dark.pingoose-halloween .pingoose-visit-intra:hover,
+.pingoose-dark.pingoose-halloween .pingoose-visit-intra:focus,
+.pingoose-dark.pingoose-halloween .pingoose-login-button:hover,
+.pingoose-dark.pingoose-halloween .pingoose-login-button:focus,
+.pingoose-dark.pingoose-halloween .pingoose-feedback-button:hover,
+.pingoose-dark.pingoose-halloween .pingoose-feedback-button:focus,
+.pingoose-dark.pingoose-halloween .pingoose-chat-add:hover,
+.pingoose-dark.pingoose-halloween .pingoose-chat-add:focus,
+.pingoose-dark.pingoose-halloween .pingoose-favorite-action:hover,
+.pingoose-dark.pingoose-halloween .pingoose-favorite-action:focus,
+.pingoose-dark.pingoose-halloween .pingoose-maintenance-refresh:hover,
+.pingoose-dark.pingoose-halloween .pingoose-maintenance-refresh:focus,
+.pingoose-dark.pingoose-halloween .pingoose-service-visit:hover,
+.pingoose-dark.pingoose-halloween .pingoose-service-visit:focus,
+.pingoose-dark.pingoose-halloween .popup-menu-item:hover,
+.pingoose-dark.pingoose-halloween .popup-menu-item:focus,
+.pingoose-dark.pingoose-halloween .pingoose-settings-button:hover,
+.pingoose-dark.pingoose-halloween .pingoose-settings-button:focus,
+.pingoose-dark.pingoose-halloween .pingoose-note-options:hover,
+.pingoose-dark.pingoose-halloween .pingoose-note-options:focus,
+.pingoose-dark.pingoose-halloween .pingoose-project-heading:hover,
+.pingoose-dark.pingoose-halloween .pingoose-project-heading:focus,
+.pingoose-dark.pingoose-halloween .pingoose-chat-chip-button:hover,
+.pingoose-dark.pingoose-halloween .pingoose-chat-chip-button:focus,
+.pingoose-dark.pingoose-halloween .pingoose-todo-check:hover,
+.pingoose-dark.pingoose-halloween .pingoose-todo-check:focus,
+.pingoose-dark.pingoose-halloween .pingoose-slot-step-button:hover,
+.pingoose-dark.pingoose-halloween .pingoose-slot-step-button:focus {
+    background-color: #5b4263;
+    color: #fff0df;
+}
+.pingoose-dark.pingoose-halloween .pingoose-clear-button.pingoose-toggle-active,
+.pingoose-dark.pingoose-halloween .pingoose-visit-intra.pingoose-toggle-active,
+.pingoose-dark.pingoose-halloween .pingoose-chat-add.pingoose-toggle-active,
+.pingoose-dark.pingoose-halloween .pingoose-favorite-action.pingoose-toggle-active,
+.pingoose-dark.pingoose-halloween .pingoose-project-heading.pingoose-toggle-active,
+.pingoose-dark.pingoose-halloween .pingoose-project-item.pingoose-project-selected,
+.pingoose-dark.pingoose-halloween .pingoose-chat-chip-active {
+    background-color: #65462e;
+    color: #fff0df;
+}
+.pingoose-dark.pingoose-halloween .pingoose-clear-button.pingoose-toggle-active:hover,
+.pingoose-dark.pingoose-halloween .pingoose-clear-button.pingoose-toggle-active:focus,
+.pingoose-dark.pingoose-halloween .pingoose-visit-intra.pingoose-toggle-active:hover,
+.pingoose-dark.pingoose-halloween .pingoose-visit-intra.pingoose-toggle-active:focus,
+.pingoose-dark.pingoose-halloween .pingoose-chat-add.pingoose-toggle-active:hover,
+.pingoose-dark.pingoose-halloween .pingoose-chat-add.pingoose-toggle-active:focus,
+.pingoose-dark.pingoose-halloween .pingoose-favorite-action.pingoose-toggle-active:hover,
+.pingoose-dark.pingoose-halloween .pingoose-favorite-action.pingoose-toggle-active:focus,
+.pingoose-dark.pingoose-halloween .pingoose-project-heading.pingoose-toggle-active:hover,
+.pingoose-dark.pingoose-halloween .pingoose-project-heading.pingoose-toggle-active:focus,
+.pingoose-dark.pingoose-halloween .pingoose-project-item.pingoose-project-selected:hover,
+.pingoose-dark.pingoose-halloween .pingoose-project-item.pingoose-project-selected:focus,
+.pingoose-dark.pingoose-halloween .pingoose-chat-chip-active:hover,
+.pingoose-dark.pingoose-halloween .pingoose-chat-chip-active:focus {
+    background-color: #79573a;
+    color: #fff0df;
+}
+.pingoose-dark.pingoose-halloween .pingoose-project-item.pingoose-project-selected StLabel {
+    color: #fff0df;
+}
+.pingoose-dark.pingoose-halloween .pingoose-profile-level,
+.pingoose-dark.pingoose-halloween .pingoose-profile-pace,
+.pingoose-dark.pingoose-halloween .pingoose-card-title,
+.pingoose-dark.pingoose-halloween .pingoose-evaluation-title,
+.pingoose-dark.pingoose-halloween .pingoose-todo-check,
+.pingoose-dark.pingoose-halloween .pingoose-service-visit,
+.pingoose-dark.pingoose-halloween .pingoose-slot-step-button:hover,
+.pingoose-dark.pingoose-halloween .pingoose-slot-step-button:focus {
+    color: #ffb86b;
+}
+.pingoose-dark.pingoose-halloween .pingoose-progress-fill {
+    background-color: #ffb86b;
+}
+.pingoose-dark.pingoose-halloween .pingoose-progress-track {
+    background-color: rgba(255, 184, 107, 0.2);
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-chip,
+.pingoose-dark.pingoose-halloween .pingoose-slot-stepper {
+    background-color: #46334e;
+    color: #fff0df;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-chip-active {
+    background-color: #65462e;
+}
+.pingoose-dark.pingoose-halloween .pingoose-project-divider {
+    background-color: #73556f;
+}
+.pingoose-dark.pingoose-halloween .pingoose-logtime-column,
+.pingoose-dark.pingoose-halloween .pingoose-evaluation-time,
+.pingoose-dark.pingoose-halloween .pingoose-slot-stepper,
+.pingoose-dark.pingoose-halloween .pingoose-slot-create-card {
+    border-color: #73556f;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-scroll {
+    background-color: #18131e;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-bubble-in,
+.pingoose-dark.pingoose-halloween .pingoose-service-picture {
+    background-color: #403047;
+    color: #fff0df;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-bubble-out,
+.pingoose-dark.pingoose-halloween .pingoose-chat-send {
+    background-color: #f5a04e;
+    color: #27150a;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-send:hover,
+.pingoose-dark.pingoose-halloween .pingoose-chat-send:focus {
+    background-color: #ffc185;
+    color: #27150a;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-bubble-out .pingoose-chat-time {
+    color: #603813;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-text {
+    selection-background-color: #f5a04e;
+    selected-color: #27150a;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-status-ok,
+.pingoose-dark.pingoose-halloween .pingoose-chat-dot-on,
+.pingoose-dark.pingoose-halloween .pingoose-agenda-subscribe {
+    color: #9bdc9a;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-status-ok {
+    background-color: rgba(155, 220, 154, 0.15);
+}
+.pingoose-dark.pingoose-halloween .pingoose-deadline-danger,
+.pingoose-dark.pingoose-halloween .pingoose-chat-status-err,
+.pingoose-dark.pingoose-halloween .pingoose-chat-connect-error,
+.pingoose-dark.pingoose-halloween .pingoose-slot-error,
+.pingoose-dark.pingoose-halloween .pingoose-slot-matched,
+.pingoose-dark.pingoose-halloween .pingoose-agenda-feedback-required,
+.pingoose-dark.pingoose-halloween .pingoose-agenda-unsubscribe {
+    color: #ff9696;
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-status-err {
+    background-color: rgba(255, 150, 150, 0.15);
+}
+.pingoose-dark.pingoose-halloween .pingoose-chat-status-err:hover,
+.pingoose-dark.pingoose-halloween .pingoose-chat-status-err:focus {
+    background-color: rgba(255, 150, 150, 0.25);
+}
+.pingoose-dark.pingoose-halloween .pingoose-dismiss:hover,
+.pingoose-dark.pingoose-halloween .pingoose-dismiss:focus,
+.pingoose-dark.pingoose-halloween .pingoose-chat-chip-close:hover,
+.pingoose-dark.pingoose-halloween .pingoose-chat-chip-close:focus,
+.pingoose-dark.pingoose-halloween .pingoose-chat-badge,
+.pingoose-dark.pingoose-halloween .pingoose-maintenance-failure {
+    background-color: #ff9696;
+    color: #35171d;
+}
+.pingoose-dark.pingoose-halloween .pingoose-favorite-unavailable,
+.pingoose-dark.pingoose-halloween .pingoose-maintenance-title,
+.pingoose-dark.pingoose-halloween .pingoose-chat-dot-wait {
+    color: #ffd166;
+}
+.pingoose-dark.pingoose-halloween StButton:insensitive,
+.pingoose-dark.pingoose-halloween StButton:insensitive:hover,
+.pingoose-dark.pingoose-halloween StButton:insensitive:focus {
+    background-color: #3c3042;
+    color: #c9b5cd;
+}
+
+/* Neon palette. Background transparency is applied only to the
+ * panel roots at runtime; controls and message surfaces retain their contrast. */
+.pingoose-dark.pingoose-neon .popup-menu-content,
+.pingoose-dark.pingoose-neon .pingoose-chat-panel {
+    background-color: #101b24;
+    color: #e2faff;
+    border-color: #36596b;
+    selection-background-color: #5de7d2;
+    selected-color: #09252a;
+}
+.pingoose-dark.pingoose-neon .popup-menu-item,
+.pingoose-dark.pingoose-neon .pingoose-heading,
+.pingoose-dark.pingoose-neon .pingoose-profile-name,
+.pingoose-dark.pingoose-neon .pingoose-project-heading,
+.pingoose-dark.pingoose-neon .pingoose-agenda-emphasis,
+.pingoose-dark.pingoose-neon .pingoose-counterpart-link,
+.pingoose-dark.pingoose-neon .pingoose-maintenance-body,
+.pingoose-dark.pingoose-neon .pingoose-service-picture {
+    color: #e2faff;
+}
+.pingoose-dark.pingoose-neon .pingoose-profile-login,
+.pingoose-dark.pingoose-neon .pingoose-profile-caption,
+.pingoose-dark.pingoose-neon .pingoose-card-time,
+.pingoose-dark.pingoose-neon .pingoose-person-seat,
+.pingoose-dark.pingoose-neon .pingoose-evaluation-time,
+.pingoose-dark.pingoose-neon .pingoose-chat-time,
+.pingoose-dark.pingoose-neon .pingoose-chat-system,
+.pingoose-dark.pingoose-neon .pingoose-chat-empty,
+.pingoose-dark.pingoose-neon .pingoose-chat-dot-off,
+.pingoose-dark.pingoose-neon .pingoose-editor-lines,
+.pingoose-dark.pingoose-neon .pingoose-agenda-subscribed,
+.pingoose-dark.pingoose-neon .pingoose-slot-duration,
+.pingoose-dark.pingoose-neon .pingoose-slot-range-divider,
+.pingoose-dark.pingoose-neon .pingoose-slot-step-button,
+.pingoose-dark.pingoose-neon .pingoose-counterpart-link.pingoose-counterpart-nick {
+    color: #9ab7c4;
+}
+.pingoose-dark.pingoose-neon .pingoose-card,
+.pingoose-dark.pingoose-neon .pingoose-evaluation-card,
+.pingoose-dark.pingoose-neon .pingoose-service-card,
+.pingoose-dark.pingoose-neon .pingoose-project-note,
+.pingoose-dark.pingoose-neon .pingoose-favorite-card,
+.pingoose-dark.pingoose-neon .pingoose-maintenance-notice,
+.pingoose-dark.pingoose-neon .pingoose-slot-create-card,
+.pingoose-dark.pingoose-neon .pingoose-avatar {
+    background-color: #192c38;
+    color: #e2faff;
+}
+.pingoose-dark.pingoose-neon .pingoose-clear-button,
+.pingoose-dark.pingoose-neon .pingoose-visit-intra,
+.pingoose-dark.pingoose-neon .pingoose-login-button,
+.pingoose-dark.pingoose-neon .pingoose-feedback-button,
+.pingoose-dark.pingoose-neon .pingoose-chat-add,
+.pingoose-dark.pingoose-neon .pingoose-favorite-action,
+.pingoose-dark.pingoose-neon .pingoose-maintenance-refresh,
+.pingoose-dark.pingoose-neon .pingoose-service-visit {
+    background-color: #244251;
+    color: #e2faff;
+}
+.pingoose-dark.pingoose-neon .pingoose-clear-button:hover,
+.pingoose-dark.pingoose-neon .pingoose-clear-button:focus,
+.pingoose-dark.pingoose-neon .pingoose-visit-intra:hover,
+.pingoose-dark.pingoose-neon .pingoose-visit-intra:focus,
+.pingoose-dark.pingoose-neon .pingoose-login-button:hover,
+.pingoose-dark.pingoose-neon .pingoose-login-button:focus,
+.pingoose-dark.pingoose-neon .pingoose-feedback-button:hover,
+.pingoose-dark.pingoose-neon .pingoose-feedback-button:focus,
+.pingoose-dark.pingoose-neon .pingoose-chat-add:hover,
+.pingoose-dark.pingoose-neon .pingoose-chat-add:focus,
+.pingoose-dark.pingoose-neon .pingoose-favorite-action:hover,
+.pingoose-dark.pingoose-neon .pingoose-favorite-action:focus,
+.pingoose-dark.pingoose-neon .pingoose-maintenance-refresh:hover,
+.pingoose-dark.pingoose-neon .pingoose-maintenance-refresh:focus,
+.pingoose-dark.pingoose-neon .pingoose-service-visit:hover,
+.pingoose-dark.pingoose-neon .pingoose-service-visit:focus,
+.pingoose-dark.pingoose-neon .popup-menu-item:hover,
+.pingoose-dark.pingoose-neon .popup-menu-item:focus,
+.pingoose-dark.pingoose-neon .pingoose-settings-button:hover,
+.pingoose-dark.pingoose-neon .pingoose-settings-button:focus,
+.pingoose-dark.pingoose-neon .pingoose-note-options:hover,
+.pingoose-dark.pingoose-neon .pingoose-note-options:focus,
+.pingoose-dark.pingoose-neon .pingoose-project-heading:hover,
+.pingoose-dark.pingoose-neon .pingoose-project-heading:focus,
+.pingoose-dark.pingoose-neon .pingoose-chat-chip-button:hover,
+.pingoose-dark.pingoose-neon .pingoose-chat-chip-button:focus,
+.pingoose-dark.pingoose-neon .pingoose-todo-check:hover,
+.pingoose-dark.pingoose-neon .pingoose-todo-check:focus,
+.pingoose-dark.pingoose-neon .pingoose-slot-step-button:hover,
+.pingoose-dark.pingoose-neon .pingoose-slot-step-button:focus {
+    background-color: #30566a;
+    color: #e2faff;
+}
+.pingoose-dark.pingoose-neon .pingoose-clear-button.pingoose-toggle-active,
+.pingoose-dark.pingoose-neon .pingoose-visit-intra.pingoose-toggle-active,
+.pingoose-dark.pingoose-neon .pingoose-chat-add.pingoose-toggle-active,
+.pingoose-dark.pingoose-neon .pingoose-favorite-action.pingoose-toggle-active,
+.pingoose-dark.pingoose-neon .pingoose-project-heading.pingoose-toggle-active,
+.pingoose-dark.pingoose-neon .pingoose-project-item.pingoose-project-selected,
+.pingoose-dark.pingoose-neon .pingoose-chat-chip-active {
+    background-color: #1d5e60;
+    color: #e2faff;
+}
+.pingoose-dark.pingoose-neon .pingoose-clear-button.pingoose-toggle-active:hover,
+.pingoose-dark.pingoose-neon .pingoose-clear-button.pingoose-toggle-active:focus,
+.pingoose-dark.pingoose-neon .pingoose-visit-intra.pingoose-toggle-active:hover,
+.pingoose-dark.pingoose-neon .pingoose-visit-intra.pingoose-toggle-active:focus,
+.pingoose-dark.pingoose-neon .pingoose-chat-add.pingoose-toggle-active:hover,
+.pingoose-dark.pingoose-neon .pingoose-chat-add.pingoose-toggle-active:focus,
+.pingoose-dark.pingoose-neon .pingoose-favorite-action.pingoose-toggle-active:hover,
+.pingoose-dark.pingoose-neon .pingoose-favorite-action.pingoose-toggle-active:focus,
+.pingoose-dark.pingoose-neon .pingoose-project-heading.pingoose-toggle-active:hover,
+.pingoose-dark.pingoose-neon .pingoose-project-heading.pingoose-toggle-active:focus,
+.pingoose-dark.pingoose-neon .pingoose-project-item.pingoose-project-selected:hover,
+.pingoose-dark.pingoose-neon .pingoose-project-item.pingoose-project-selected:focus,
+.pingoose-dark.pingoose-neon .pingoose-chat-chip-active:hover,
+.pingoose-dark.pingoose-neon .pingoose-chat-chip-active:focus {
+    background-color: #286f73;
+    color: #e2faff;
+}
+.pingoose-dark.pingoose-neon .pingoose-project-item.pingoose-project-selected StLabel {
+    color: #e2faff;
+}
+.pingoose-dark.pingoose-neon .pingoose-profile-level,
+.pingoose-dark.pingoose-neon .pingoose-profile-pace,
+.pingoose-dark.pingoose-neon .pingoose-card-title,
+.pingoose-dark.pingoose-neon .pingoose-evaluation-title,
+.pingoose-dark.pingoose-neon .pingoose-todo-check,
+.pingoose-dark.pingoose-neon .pingoose-service-visit,
+.pingoose-dark.pingoose-neon .pingoose-slot-step-button:hover,
+.pingoose-dark.pingoose-neon .pingoose-slot-step-button:focus {
+    color: #64f4da;
+}
+.pingoose-dark.pingoose-neon .pingoose-progress-fill {
+    background-color: #64f4da;
+}
+.pingoose-dark.pingoose-neon .pingoose-progress-track {
+    background-color: rgba(100, 244, 218, 0.2);
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-chip,
+.pingoose-dark.pingoose-neon .pingoose-slot-stepper {
+    background-color: #244251;
+    color: #e2faff;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-chip-active {
+    background-color: #1d5e60;
+}
+.pingoose-dark.pingoose-neon .pingoose-project-divider {
+    background-color: #36596b;
+}
+.pingoose-dark.pingoose-neon .pingoose-logtime-column,
+.pingoose-dark.pingoose-neon .pingoose-evaluation-time,
+.pingoose-dark.pingoose-neon .pingoose-slot-stepper,
+.pingoose-dark.pingoose-neon .pingoose-slot-create-card {
+    border-color: #36596b;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-scroll {
+    background-color: #0b151e;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-bubble-in,
+.pingoose-dark.pingoose-neon .pingoose-service-picture {
+    background-color: #203846;
+    color: #e2faff;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-bubble-out,
+.pingoose-dark.pingoose-neon .pingoose-chat-send {
+    background-color: #5de7d2;
+    color: #09252a;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-send:hover,
+.pingoose-dark.pingoose-neon .pingoose-chat-send:focus {
+    background-color: #a0ffee;
+    color: #09252a;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-bubble-out .pingoose-chat-time {
+    color: #21575b;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-text {
+    selection-background-color: #5de7d2;
+    selected-color: #09252a;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-status-ok,
+.pingoose-dark.pingoose-neon .pingoose-chat-dot-on,
+.pingoose-dark.pingoose-neon .pingoose-agenda-subscribe {
+    color: #72f0ae;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-status-ok {
+    background-color: rgba(114, 240, 174, 0.15);
+}
+.pingoose-dark.pingoose-neon .pingoose-deadline-danger,
+.pingoose-dark.pingoose-neon .pingoose-chat-status-err,
+.pingoose-dark.pingoose-neon .pingoose-chat-connect-error,
+.pingoose-dark.pingoose-neon .pingoose-slot-error,
+.pingoose-dark.pingoose-neon .pingoose-slot-matched,
+.pingoose-dark.pingoose-neon .pingoose-agenda-feedback-required,
+.pingoose-dark.pingoose-neon .pingoose-agenda-unsubscribe {
+    color: #ff9db4;
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-status-err {
+    background-color: rgba(255, 157, 180, 0.15);
+}
+.pingoose-dark.pingoose-neon .pingoose-chat-status-err:hover,
+.pingoose-dark.pingoose-neon .pingoose-chat-status-err:focus {
+    background-color: rgba(255, 157, 180, 0.25);
+}
+.pingoose-dark.pingoose-neon .pingoose-dismiss:hover,
+.pingoose-dark.pingoose-neon .pingoose-dismiss:focus,
+.pingoose-dark.pingoose-neon .pingoose-chat-chip-close:hover,
+.pingoose-dark.pingoose-neon .pingoose-chat-chip-close:focus,
+.pingoose-dark.pingoose-neon .pingoose-chat-badge,
+.pingoose-dark.pingoose-neon .pingoose-maintenance-failure {
+    background-color: #ff9db4;
+    color: #35141e;
+}
+.pingoose-dark.pingoose-neon .pingoose-favorite-unavailable,
+.pingoose-dark.pingoose-neon .pingoose-maintenance-title,
+.pingoose-dark.pingoose-neon .pingoose-chat-dot-wait {
+    color: #ffd579;
+}
+.pingoose-dark.pingoose-neon StButton:insensitive,
+.pingoose-dark.pingoose-neon StButton:insensitive:hover,
+.pingoose-dark.pingoose-neon StButton:insensitive:focus {
+    background-color: #243b49;
+    color: #aac6d1;
+}

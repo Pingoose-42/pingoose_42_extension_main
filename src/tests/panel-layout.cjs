@@ -270,8 +270,35 @@ assert.equal(
     484,
     'bottom anchor uses available area above the bar'
 );
+const background = 'background-color: rgba(255, 241, 246, 0.60);';
+mainFrame.opacity = 201;
+sizedPanel.opacity = 222;
+layout.applyPanelAppearance(background);
+layout.applyPanelLayout();
+assert.equal(mainFrame.style, background);
+assert.equal(sizedPanel.style, background, 'paint the side root, not its margin/scroll frame');
+assert.equal(
+    side.style,
+    `margin-right: 0px; ${background}`,
+    'unsized fallback preserves its background'
+);
+assert.equal(resize.actor.style?.includes('background-color') || false, false);
+assert.equal(mainFrame.height, 300, 'color changes do not alter saved/custom panel heights');
+assert.equal(mainFrame.opacity, 201, 'popup animation opacity is untouched');
+assert.equal(sizedPanel.opacity, 222, 'content is not faded with the panel background');
+const laterPanel = new Actor();
+host.addPanel(laterPanel, { key: 'service-panel-height', scroll: new Actor() });
+assert.equal(laterPanel.style, background, 'panels added later inherit the active background');
+layout.applyPanelAppearance('background-color: rgba(246, 247, 249, 1.00);');
+layout.applyPanelLayout();
+assert.equal(mainFrame.style, 'background-color: rgba(246, 247, 249, 1.00);');
+assert.equal(laterPanel.style, mainFrame.style, 'reset/theme changes update hidden panels too');
+console.log(
+    'PASS: background-only transparency preserves panel sizing, spacing and animation opacity'
+);
 layout.destroy();
 layout.destroy();
+assert.doesNotThrow(() => layout.applyPanelAppearance(background));
 assert.equal(host.menu.close, close);
 assert.equal(host.bringPanelNearMain, null);
 assert.ok(resizes.every((resize) => resize.destroyed));

@@ -284,9 +284,11 @@ var Controller = class Controller {
     }
 
     _applyTheme() {
-        const actor = this._indicator.menu.actor;
-        actor.remove_style_class_name('pingoose-dark');
-        actor.remove_style_class_name('pingoose-light');
-        actor.add_style_class_name(`pingoose-${this._settings.get_string('theme')}`);
+        const themes = Me.imports.models.themes;
+        const theme = this._settings.get_string('theme');
+        themes.applyClasses(this._indicator.menu.actor, theme);
+        this._layout.applyPanelAppearance(
+            themes.backgroundStyle(theme, this._settings.get_int('panel-transparency'))
+        );
     }
 };

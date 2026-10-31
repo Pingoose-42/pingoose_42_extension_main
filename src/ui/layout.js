@@ -59,6 +59,7 @@ var Controller = class Controller {
         ]);
         indicator.addPanel = (panel, sizing = null) => {
             const frame = sizing ? Me.imports.ui.panelViewport.sideViewport(panel) : panel;
+            if (this._panelBackgroundStyle) panel.set_style(this._panelBackgroundStyle);
             const reveal = new Me.imports.ui.reveal.Reveal(frame, true);
             this._panels.set(panel, reveal);
             columns.insert_child_at_index(reveal, 0);
@@ -153,6 +154,16 @@ var Controller = class Controller {
         this._applyPanelLayout();
     }
 
+    applyPanelAppearance(backgroundStyle) {
+        if (this._destroyed) return;
+        // These painted roots own their background style. Margins belong to the
+        // outer frames, and resizing uses actor heights, so neither is overwritten.
+        // Do not fade the actor: that would also fade text and clash with animations.
+        this._panelBackgroundStyle = backgroundStyle;
+        this._mainActor.set_style(backgroundStyle);
+        for (const panel of this._panels.keys()) panel.set_style(backgroundStyle);
+    }
+
     _applyPanelLayout() {
         const indicator = this._indicator;
         if (this._destroyed || !indicator?.sideColumns) return;
@@ -178,11 +189,16 @@ var Controller = class Controller {
         const panels = columns
             .get_children()
             .filter((child) => child !== (this._mainActor || indicator.menu.box) && child.visible);
-        panels.forEach((panel, index) =>
-            (panel.childActor || panel).set_style(
-                `margin-right: ${settings.get_int(index === panels.length - 1 ? 'main-panel-gap' : 'panel-gap')}px;`
-            )
-        );
+        panels.forEach((panel, index) => {
+            const frame = panel.childActor || panel;
+            const margin = settings.get_int(
+                index === panels.length - 1 ? 'main-panel-gap' : 'panel-gap'
+            );
+            // An unsized panel is its own frame, so its gap and background share
+            // one style. Sized panels keep their gap on the unpainted wrapper.
+            const background = this._panels?.has(frame) ? this._panelBackgroundStyle || '' : '';
+            frame.set_style(`margin-right: ${margin}px;` + (background ? ` ${background}` : ''));
+        });
         for (const resize of this._resizers?.values() || []) resize.refresh();
         indicator.syncPanelLayout = () => this._applyPanelLayout();
     }

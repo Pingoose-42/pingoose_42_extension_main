@@ -43,9 +43,15 @@
     <key name="auto-update" type="b"><default>true</default><summary>Install available updates without prompting</summary></key>
     <key name="auto-close-panels" type="b"><default>false</default><summary>Close side panels when the main menu closes</summary></key>
     <key name="theme" type="s">
-      <choices><choice value="dark"/><choice value="light"/></choices>
+      <choices><choice value="dark"/><choice value="light"/><choice value="pink"/><choice value="halloween"/><choice value="neon"/></choices>
       <default>'dark'</default>
       <summary>Profile menu color theme</summary>
+    </key>
+    <key name="panel-transparency" type="i">
+      <range min="0" max="80"/>
+      <default>0</default>
+      <summary>Panel background transparency in percent</summary>
+      <description>Zero keeps panel backgrounds solid. Higher values make backgrounds more transparent, up to 80 percent. Text and input fields remain opaque.</description>
     </key>
     <key name="auto-hide-scrollbars" type="b"><default>true</default><summary>Hide panel scrollbars when scrolling stops</summary></key>
     <key name="chat-favorites-available-only" type="b"><default>false</default><summary>Show only available favorites</summary></key>

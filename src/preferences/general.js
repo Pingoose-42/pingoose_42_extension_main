@@ -1,5 +1,6 @@
 const { Gtk, Gio, GLib } = imports.gi;
 const Common = imports.misc.extensionUtils.getCurrentExtension().imports.preferences.common;
+const Themes = imports.misc.extensionUtils.getCurrentExtension().imports.models.themes;
 function build(settings) {
     const box = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 18 });
     Common.sectionHeading(box, 'Panel & Shortcuts', false);
@@ -7,10 +8,34 @@ function build(settings) {
         .getCurrentExtension()
         .imports.preferences.panelShortcut.append(box, settings);
     const theme = new Gtk.ComboBoxText();
-    theme.append('dark', 'Dark');
-    theme.append('light', 'Light');
+    for (const [id, label] of Themes.choices) theme.append(id, label);
     settings.bind('theme', theme, 'active-id', Gio.SettingsBindFlags.DEFAULT);
     Common.row(box, 'Color mode', theme);
+    const transparency = Gtk.SpinButton.new_with_range(0, 80, 1);
+    transparency.numeric = true;
+    transparency.tooltip_text =
+        '0% = Solid. 80% = Most transparent. Only panel backgrounds change; text and input fields stay opaque.';
+    settings.bind('panel-transparency', transparency, 'value', Gio.SettingsBindFlags.DEFAULT);
+    const transparencyRow = new Gtk.Box({ spacing: 24 });
+    transparencyRow.append(
+        new Gtk.Label({
+            label: 'Panel _transparency (0–80%)',
+            use_underline: true,
+            mnemonic_widget: transparency,
+            xalign: 0,
+            hexpand: true,
+            wrap: true,
+        })
+    );
+    transparencyRow.append(transparency);
+    box.append(transparencyRow);
+    box.append(
+        new Gtk.Label({
+            label: 'Changes panel backgrounds only. Text and input fields stay opaque and readable.',
+            xalign: 0,
+            wrap: true,
+        })
+    );
     const autoClose = new Gtk.Switch({ valign: Gtk.Align.CENTER });
     settings.bind('auto-close-panels', autoClose, 'active', Gio.SettingsBindFlags.DEFAULT);
     Common.row(box, 'Auto-close side panels', autoClose);

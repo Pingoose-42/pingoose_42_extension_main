@@ -144,7 +144,8 @@ Settings → 42 Services에서 HTTPS 사이트를 최대 30개까지 추가·수
 | 항목 | 기본값 / 동작 |
 | --- | --- |
 | Toggle Pingoose shortcut | 기본 미지정. 키 조합으로 메인 패널 열기·닫기, Reset으로 해제 |
-| Color mode | Dark. Dark / Light 선택 |
+| Color mode | Dark. Dark / Light / Pink / Halloween / Neon 선택 |
+| Panel transparency (0–80%) | 기본 0%(불투명). 메인·채팅·메모·서비스 패널 배경의 투명도를 함께 조절하며 글자와 입력칸은 선명하게 유지 |
 | Check for Updates | 로그인 후에도 즉시 GitHub 업데이트 확인 |
 | Sync agenda with Calendar | 기본 꺼짐. 아젠다 제목·시작·종료 시각을 로컬 Pingoose Agenda 캘린더에 동기화합니다. 기본 대상은 구독한 아젠다이며 All agendas로 변경할 수 있습니다. 구독 전용 모드에서 아직 시작하지 않은 일정의 구독을 취소하면 해당 일정도 제거됩니다. PC 시간대로 표시되며, 이미 시작한 일정은 서버 목록이나 구독 표시가 사라져도 이력으로 유지됩니다. 끄면 동기화만 중지하고 저장된 일정은 유지합니다. General의 아젠다 동기화 옵션 아래 Management 버튼으로 별도 관리 창을 열어 저장된 일정을 개별 삭제할 수 있으며 삭제한 일정은 동기화를 껐다 켜면 서버에 남아 있는 경우 다시 가져옵니다. Evolution Data Server가 필요합니다. |
 | Automatically delete past calendar events | 기본 꺼짐. 켤 때 Yes/No 확인창을 표시하며, Yes를 누른 뒤 동기화 시 종료 시각이 지난 일정만 자동 삭제합니다. 진행 중인 일정은 유지하며, 동기화가 꺼져 있으면 삭제하지 않습니다. 꺼두면 지난 일정은 Management에서 직접 삭제할 때까지 유지됩니다. |
@@ -155,6 +156,8 @@ Settings → 42 Services에서 HTTPS 사이트를 최대 30개까지 추가·수
 | Agenda Reset | 숨긴 아젠다 복원 및 현재 목록 재조회. 구독·피드백 상태는 변경하지 않음 |
 | Logout Intra | Intra 세션 종료 및 열린 관련 창·채팅 정리 |
 | Reset All Data | 확인 후 로컬 데이터 삭제, 설정 기본값 복원 및 로그아웃. 서버 프로젝트·슬롯은 변경하지 않음 |
+
+Light는 밝은 배경과 어두운 글자를 사용하며 채팅·연결·메모 입력칸도 같은 밝은 계열로 표시합니다. Pink는 밝은 분홍과 라즈베리 강조색, Halloween은 짙은 자주색과 호박색, Neon은 어두운 청록색과 밝은 민트색 조합입니다. General에서 테마와 투명도를 변경하면 열린 패널에도 바로 적용됩니다. 기존 Dark/Light 설정과 패널별 높이·간격은 유지됩니다.
 
 ### Notifications
 
