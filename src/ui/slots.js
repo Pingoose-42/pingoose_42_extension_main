@@ -381,7 +381,10 @@ var Controller = class Controller {
             accessible_name: 'Close slot',
             style_class: 'pingoose-dismiss',
         });
-        close.connect('clicked', () => this._requestSlots(`slots:close:${slot.id}`));
+        const action = `close:${slot.id}`;
+        this._trackActionButton(close, '×', action);
+        close.accessible_name = 'Close slot';
+        close.connect('clicked', () => this._requestSlots(`slots:close:${slot.id}`, action));
         item.add_child(close);
         section.addMenuItem(item);
     }
