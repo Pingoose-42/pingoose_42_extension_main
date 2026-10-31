@@ -7,6 +7,7 @@ const heightKeys = [
     'chat-panel-height',
     'project-panel-height',
     'service-panel-height',
+    'favorites-panel-height',
 ];
 const schema = fs.readFileSync(
     'src/schemas/org.gnome.shell.extensions.pingoose.gschema.xml',
@@ -107,6 +108,7 @@ const build = moduleExport('preferences/layout.js', 'build', {
 const page = build(settings);
 const heightRows = page.children.filter((child) => child.children[0]?.mnemonic_widget);
 assert.equal(heightRows.length, heightKeys.length);
+const mnemonics = new Set();
 for (const [index, key] of heightKeys.entries()) {
     const spin = bindings.get(key);
     assert.equal(spin.value, 0);
@@ -115,6 +117,9 @@ for (const [index, key] of heightKeys.entries()) {
     const label = heightRows[index].children[0];
     assert.equal(label.mnemonic_widget, spin, 'each label activates its own spin control');
     assert.equal(label.use_underline, true);
+    const mnemonic = label.label.match(/_(.)/)[1].toLowerCase();
+    assert.ok(!mnemonics.has(mnemonic), 'height controls use distinct keyboard mnemonics');
+    mnemonics.add(mnemonic);
     spin.value = 450 + index * 50;
     assert.equal(values.get(key), 450 + index * 50, 'keyboard edits update their own setting');
 }
@@ -124,6 +129,21 @@ assert.equal(values.get('main-panel-gap'), 12, 'height controls leave panel spac
 settings.set_int('chat-panel-height', 615);
 assert.equal(values.get('chat-panel-height'), 615);
 assert.equal(bindings.get('chat-panel-height').value, 615);
+assert.equal(
+    bindings.get('favorites-panel-height').value,
+    650,
+    'chat resizing leaves favorites unchanged'
+);
+settings.set_int('favorites-panel-height', 480);
+assert.equal(bindings.get('favorites-panel-height').value, 480);
+assert.equal(values.get('chat-panel-height'), 615, 'favorites resizing leaves chat unchanged');
+bindings.get('favorites-panel-height').value = 0;
+assert.equal(
+    values.get('favorites-panel-height'),
+    0,
+    'favorites can return to automatic sizing independently'
+);
+assert.equal(values.get('chat-panel-height'), 615);
 const reset = page.children.find((child) => child.label === 'Reset panel heights');
 assert.ok(reset);
 reset.emit('clicked');

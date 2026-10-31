@@ -24,8 +24,6 @@ var Controller = class Controller {
             this._connect(viewport.content, 'queue-relayout', () => this.refresh());
             this._connect(viewport.content, 'destroy', () => this.destroy(false));
         }
-        if (options.baseActor)
-            this._connect(options.baseActor, 'notify::allocation', () => this.refresh());
         this._connect(actor, 'notify::mapped', () => {
             if (!actor.mapped) this.cancel();
             else this.refresh();
@@ -49,11 +47,7 @@ var Controller = class Controller {
     }
 
     get automatic() {
-        return (
-            !this.options.baseActor &&
-            this.preview === null &&
-            this.settings.get_int(this.key) === 0
-        );
+        return this.preview === null && this.settings.get_int(this.key) === 0;
     }
 
     get naturalContent() {
@@ -83,18 +77,19 @@ var Controller = class Controller {
         const bounds = this.options.bounds(this.actor);
         this.applying = true;
         if (this.automatic) {
-            if (this.viewport.naturalHeight() > bounds.maximum)
+            const natural = this.viewport.naturalHeight();
+            this.viewport.prepare?.(Math.min(natural, bounds.maximum));
+            if (natural > bounds.maximum)
                 this.viewport.apply(Math.max(1, Math.floor(bounds.maximum)), true);
             else this.viewport.restore();
         } else {
             const dynamic = this.viewport.dynamicHeight();
             this.reference ??= dynamic;
-            const height =
-                this.preview ??
-                (this.options.baseActor?.height ?? this.settings.get_int(this.key)) +
-                    dynamic -
-                    this.reference;
-            this.viewport.apply(Size.clamp(height, this.viewport.minimumHeight(), bounds.maximum));
+            const desired =
+                this.preview ?? this.settings.get_int(this.key) + dynamic - this.reference;
+            const height = Size.clamp(desired, this.viewport.minimumHeight(), bounds.maximum);
+            this.viewport.prepare?.(height);
+            this.viewport.apply(height);
         }
         this.applying = false;
     }

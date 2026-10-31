@@ -155,8 +155,17 @@ assert.equal(size.naturalHeight(), 324, 'screen clipping does not become the new
 assert.equal(size.minimumHeight(), 188);
 size.restore(false);
 
+scroll.margin_top = 4;
+scroll.margin_bottom = 2;
+scroll.get_preferred_height = () => [70, 206];
+assert.equal(size.chromeHeight(), 130, 'scroll margins belong to fixed panel chrome');
+assert.equal(size.minimumHeight(), 194);
+assert.equal(size.naturalHeight(), 330, 'natural measurement includes each scroll margin once');
+size.apply(330);
+assert.equal(scroll.height, 200, 'explicit scroll height excludes its outer margins');
+size.restore(false);
+
 let favoriteSizing;
-const chatRoot = new Actor();
 const Favorites = moduleExport('ui/favorites.js', 'Panel', {
     imports: {
         gi: {
@@ -194,7 +203,6 @@ const Favorites = moduleExport('ui/favorites.js', 'Panel', {
 Favorites.prototype.render = () => {};
 const favorites = new Favorites({
     _settings: { get_boolean: () => false, get_string: () => '[]' },
-    _chatUi: { root: chatRoot },
     _indicator: {
         addPanel: (panel, sizing) => {
             favoriteSizing = { panel, sizing };
@@ -202,7 +210,7 @@ const favorites = new Favorites({
     },
 });
 assert.equal(favoriteSizing.panel, favorites.root);
-assert.equal(favoriteSizing.sizing.baseActor, chatRoot);
+assert.equal(favoriteSizing.sizing.key, 'favorites-panel-height');
 assert.equal(favoriteSizing.sizing.scroll, favorites.scroll);
 assert(
     favorites.root.get_children().includes(favorites.scroll),

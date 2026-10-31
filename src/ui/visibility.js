@@ -153,17 +153,6 @@ var Controller = class Controller {
         else if (indicator.notificationItem)
             indicator.notificationItem.visible = notificationsVisible;
 
-        // Caps, not fixed heights: short lists occupy only their natural height.
-        // Preserve more room for notifications when the slot list is expanded.
-        const slotsVisible = slotsExpanded && !indicator.loginOnly && enabled('slots');
-        const evaluationMax = notificationsVisible
-            ? slotsVisible
-                ? 190
-                : 300
-            : slotsVisible
-              ? 280
-              : 360;
-        indicator.evaluationScroll?.set_style(`min-height: 0; max-height: ${evaluationMax}px;`);
         this._applySectionOrder();
         if (this._layoutManager) this._layoutManager.applyPanelLayout();
     }

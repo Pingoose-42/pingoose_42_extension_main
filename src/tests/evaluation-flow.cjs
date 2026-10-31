@@ -341,22 +341,23 @@ console.log(
     'PASS: feedback actions preserve scroll after layout; removing content clamps to valid scroll range'
 );
 
-let evaluationStyle;
+let evaluationStyle = 'existing-theme-style',
+    contentLayouts = 0;
 visibility._indicator.evaluationScroll = {
     set_style(style) {
         evaluationStyle = style;
     },
 };
+visibility._layoutManager = { applyPanelLayout: () => contentLayouts++ };
 visibility._notifications = [{}];
 visibility._slotsExpanded = true;
 visibility._syncOptionalSections();
-assert.ok(evaluationStyle.includes('190px'));
 visibility._slotsExpanded = false;
 visibility._syncOptionalSections();
-assert.ok(evaluationStyle.includes('300px'));
 visibility._notifications = [];
 visibility._syncOptionalSections();
-assert.ok(evaluationStyle.includes('360px'));
+assert.equal(evaluationStyle, 'existing-theme-style', 'visibility does not overwrite list sizing');
+assert.equal(contentLayouts, 3, 'section changes delegate available height to the shared layout');
 e._evaluations = [
     {
         id: 'missing-test',

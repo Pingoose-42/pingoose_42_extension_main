@@ -133,9 +133,7 @@ var Panel = class Panel {
         this.list = new St.BoxLayout({ vertical: true, style_class: 'pingoose-favorites-list' });
         scroll.add_actor(this.list);
         this.root.add_child(scroll);
-        // Follow the chat card while allowing this panel's own input/error rows
-        // to grow and shrink without stealing space from its favorites list.
-        chat._indicator.addPanel(this.root, { scroll, baseActor: chat._chatUi.root });
+        chat._indicator.addPanel(this.root, { key: 'favorites-panel-height', scroll });
         this.render();
     }
     toggleFilter() {

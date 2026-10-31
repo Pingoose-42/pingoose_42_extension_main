@@ -358,6 +358,16 @@ var Indicator = GObject.registerClass(
             listItem.add_style_class_name('pingoose-list-container');
             const notificationArea = new St.BoxLayout({ vertical: true, x_expand: true });
             const notificationReveal = new Reveal(list);
+            this.mainSections = [
+                { scroll: slotScroll, content: this.slotItems.actor, reveal: this.slotReveal },
+                {
+                    scroll: evaluationScroll,
+                    content: this.evaluations.actor,
+                    reveal: evaluationReveal,
+                },
+                { scroll: agendaScroll, content: this.agenda.actor, reveal: agendaReveal },
+                { scroll: list, content: this.cards.actor, reveal: notificationReveal },
+            ];
             this.notificationToggle = this._sectionToggle(
                 'Notifications',
                 notificationReveal,

@@ -408,7 +408,7 @@
     color: #20252c;
 }
 
-/* Show a five-slot schedule plus controls; longer lists still scroll. */
+/* Initial cap; mainContentSizer assigns the available height after layout. */
 .pingoose-slot-scroll {
     max-height: 266px;
 }

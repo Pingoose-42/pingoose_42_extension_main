@@ -42,11 +42,12 @@ function sideViewport(panel) {
 // Side-panel headers and inputs retain their natural height. Only the designated
 // list/log viewport takes the remaining room, so resizing cannot squash controls.
 var Viewport = class Viewport {
-    constructor(actor, scroll = null, onAutomatic = null, content = actor) {
+    constructor(actor, scroll = null, onAutomatic = null, content = actor, contentSizer = null) {
         this.actor = actor;
         this.content = content;
         this.scroll = scroll;
         this.onAutomatic = onAutomatic;
+        this.contentSizer = contentSizer;
         this.fixed = false;
         this.scrollStyle = scroll?.get_style() || null;
     }
@@ -56,7 +57,8 @@ var Viewport = class Viewport {
         const node = this.content.get_theme_node();
         const width = node.adjust_for_width(this.content.width);
         const children = this.content.get_children().filter((child) => child.visible);
-        let height = Math.max(0, children.length - 1) * node.get_length('spacing');
+        let height =
+            Math.max(0, children.length - 1) * node.get_length('spacing') + this.scrollMargin();
         for (const child of children) {
             if (child !== this.scroll) height += child.get_preferred_height(width)[1];
         }
@@ -64,6 +66,7 @@ var Viewport = class Viewport {
     }
 
     minimumHeight() {
+        if (this.contentSizer) return this.contentSizer.minimumHeight();
         return this.scroll ? this.chromeHeight() + Size.MINIMUM_VIEWPORT : this.naturalHeight();
     }
 
@@ -74,15 +77,28 @@ var Viewport = class Viewport {
     }
 
     naturalHeight() {
+        if (this.contentSizer) return this.contentSizer.naturalHeight();
         if (this.scroll) {
             const node = this.content.get_theme_node();
             const width = node.adjust_for_width(this.content.width || this.actor.width);
-            return this.chromeHeight() + this.scroll.get_preferred_height(width)[1];
+            return (
+                this.chromeHeight() +
+                this.scroll.get_preferred_height(width)[1] -
+                this.scrollMargin()
+            );
         }
         const node = this.actor.get_theme_node();
         const width = node.adjust_for_width(this.actor.width);
         const height = this.content.get_preferred_height(width)[1];
         return Math.ceil(node.adjust_preferred_height(height, height)[1]);
+    }
+
+    scrollMargin() {
+        return (this.scroll?.margin_top || 0) + (this.scroll?.margin_bottom || 0);
+    }
+
+    prepare(height) {
+        this.contentSizer?.fit(height);
     }
 
     apply(height, natural = false) {

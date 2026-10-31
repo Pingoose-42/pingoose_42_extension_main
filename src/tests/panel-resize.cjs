@@ -106,7 +106,11 @@ function fixture(settings = new Settings(), key = 'main-panel-height', extra = {
         minimumHeight() {
             return this.minimum;
         },
+        prepare(height) {
+            this.prepared = height;
+        },
         apply(height, natural = false) {
+            assert.equal(this.prepared, height, 'inner lists are fitted before the outer height');
             this.fixed = true;
             this.naturalMode = natural;
             this.heights.push(height);
@@ -283,43 +287,52 @@ assert.equal(opened.actor.height, 440, 'screen clipping does not overwrite the c
 automatic.resize.destroy();
 opened.resize.destroy();
 
-const chatActor = new Actor({ height: 350 }),
-    favoritesContent = new Actor();
-const favorites = fixture(new Settings(), null, {
-    baseActor: chatActor,
+const independentSettings = new Settings();
+independentSettings.values['chat-panel-height'] = 360;
+independentSettings.values['favorites-panel-height'] = 280;
+const independentChat = fixture(independentSettings, 'chat-panel-height');
+const favoritesContent = new Actor();
+const favorites = fixture(independentSettings, 'favorites-panel-height', {
     content: favoritesContent,
 });
 flush();
-assert.equal(favorites.actor.height, 350, 'favorites initially follow the chat height');
+assert.equal(independentChat.actor.height, 360);
+assert.equal(favorites.actor.height, 280);
+favorites.resize.capture(event('BUTTON_PRESS', 280));
+favorites.resize.capture(event('MOTION', 400));
+flush();
+favorites.resize.capture(event('BUTTON_RELEASE', 400));
+flush();
+assert.equal(independentSettings.get_int('favorites-panel-height'), 400);
+assert.equal(independentSettings.get_int('chat-panel-height'), 360);
+assert.equal(independentChat.actor.height, 360, 'favorites drag does not resize chat');
 favorites.viewport.dynamic = 140;
 favoritesContent.emit('queue-relayout');
 flush();
-assert.equal(
-    favorites.actor.height,
-    390,
-    'favorites input grows its panel without shrinking the list'
-);
-chatActor.height = 400;
-chatActor.emit('notify::allocation');
-flush();
-assert.equal(
-    favorites.actor.height,
-    440,
-    'chat size changes preserve independent favorite input growth'
-);
+assert.equal(favorites.actor.height, 440, 'favorites input grows its own reading area');
+assert.equal(independentChat.actor.height, 360);
 favorites.viewport.dynamic = 100;
 favoritesContent.emit('queue-relayout');
 flush();
-assert.equal(favorites.actor.height, 400);
-assert.equal(
-    favorites.resize.capture(event('BUTTON_PRESS', 400)),
-    false,
-    'following panel does not expose an unrelated drag setting'
-);
+assert.equal(favorites.actor.height, 400, 'closing favorites input restores its selected height');
+independentChat.resize.capture(event('BUTTON_PRESS', 360));
+independentChat.resize.capture(event('MOTION', 460));
+flush();
+independentChat.resize.capture(event('BUTTON_RELEASE', 460));
+flush();
+assert.equal(independentChat.actor.height, 460);
+assert.equal(favorites.actor.height, 400, 'chat drag does not resize favorites');
+assert.equal(independentSettings.get_int('favorites-panel-height'), 400);
+independentSettings.set_int('favorites-panel-height', 0);
+flush();
+assert.equal(favorites.actor.height, 300, 'favorites reset restores its own natural height');
+assert.equal(independentChat.actor.height, 460);
+assert.equal(independentSettings.get_int('chat-panel-height'), 460);
 favoritesContent.emit('destroy');
 assert.equal(favorites.resize.destroyed, true);
-assert.equal(chatActor.signals.size, 0, 'destroying the content disconnects its height source');
 assert.equal(favoritesContent.signals.size, 0);
+independentChat.resize.destroy();
+assert.equal(independentSettings.signals.size, 0);
 bottom.resize.capture(event('BUTTON_PRESS', 0));
 bottom.bounds.scale = 1;
 bottom.resize.dragEvent(event('MOTION', -50));

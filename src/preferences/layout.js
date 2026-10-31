@@ -5,6 +5,7 @@ const HEIGHTS = [
     ['chat-panel-height', '_Cluster Chat (px)'],
     ['project-panel-height', '_Project notes (px)'],
     ['service-panel-height', '42 _Services (px)'],
+    ['favorites-panel-height', '_Favorites (px)'],
 ];
 function build(settings) {
     const box = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 8 });

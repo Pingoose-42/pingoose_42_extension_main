@@ -113,6 +113,16 @@ const Layout = loadController('ui/layout.js', {
                 getCurrentExtension: () => ({
                     imports: {
                         ui: {
+                            mainContentSizer: {
+                                Controller: class {
+                                    constructor(actor, content, sections) {
+                                        Object.assign(this, { actor, content, sections });
+                                    }
+                                    destroy() {
+                                        this.destroyed = true;
+                                    }
+                                },
+                            },
                             inputMethodPopup: {
                                 Controller: class {
                                     constructor(menu) {
@@ -135,12 +145,13 @@ const Layout = loadController('ui/layout.js', {
                                     return frame;
                                 },
                                 Viewport: class {
-                                    constructor(actor, scroll, onAutomatic, content) {
+                                    constructor(actor, scroll, onAutomatic, content, contentSizer) {
                                         Object.assign(this, {
                                             actor,
                                             scroll,
                                             onAutomatic,
                                             content,
+                                            contentSizer,
                                         });
                                     }
                                     revealFocus() {}
@@ -217,6 +228,7 @@ const Layout = loadController('ui/layout.js', {
 });
 const layout = new Layout(host, { get_int: () => 0 });
 assert.equal(resizes[0].viewport.content, hostMain, 'main sizing measures the original menu box');
+assert.equal(resizes[0].viewport.contentSizer, layout._mainContentSizer);
 assert.equal(inputMethod.menu, host.menu, 'layout owns the input-method popup integration');
 const side = new Actor();
 host.addPanel(side);
@@ -253,13 +265,12 @@ assert.equal(resize.actor.get_children()[0], sizedPanel);
 const favoritesPanel = new Actor();
 const favoriteResize = host.addPanel(favoritesPanel, {
     scroll: new Actor(),
-    baseActor: sizedPanel,
+    key: 'favorites-panel-height',
 });
-assert.equal(favoriteResize.options.baseActor, sizedPanel);
 assert.equal(
     favoriteResize.key,
-    undefined,
-    'following panels do not borrow a persisted height key'
+    'favorites-panel-height',
+    'favorites has its own persisted height key'
 );
 host.setPanelVisible(sizedPanel, false);
 assert.equal(resize.cancelled, true, 'closing a side panel cancels its resize immediately');
@@ -315,6 +326,7 @@ assert.equal(host.menu.close, close);
 assert.equal(host.bringPanelNearMain, null);
 assert.ok(resizes.every((resize) => resize.destroyed));
 assert.equal(inputMethod.destroyed, true);
+assert.equal(layout._mainContentSizer.destroyed, true);
 assert.equal(layoutSignals.signals.size, 0);
 assert.equal(stage.signals.size, 0);
 console.log('PASS: shared panel host belongs to layout and restores popup callbacks on teardown');
