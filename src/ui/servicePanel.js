@@ -18,7 +18,6 @@ var ServicePanel = class ServicePanel {
             y_align: Clutter.ActorAlign.START,
             style_class: 'pingoose-chat-panel pingoose-service-panel',
         });
-        indicator.addPanel(this.root);
         const header = new St.BoxLayout({ style_class: 'pingoose-chat-header' });
         header.add_child(
             new St.Label({ text: '42 Services', x_expand: true, style_class: 'pingoose-heading' })
@@ -43,6 +42,7 @@ var ServicePanel = class ServicePanel {
         this.cards = new St.BoxLayout({ vertical: true, style_class: 'pingoose-service-cards' });
         scroll.add_actor(this.cards);
         this.root.add_child(scroll);
+        indicator.addPanel(this.root, { key: 'service-panel-height', scroll });
         this.item = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
         this.item.remove_all_children();
         this.item.add_style_class_name('pingoose-overview-item');

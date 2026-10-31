@@ -2,9 +2,10 @@
     "name": "pingoose-development",
     "private": true,
     "scripts": {
-        "test": "bash src/scripts/test.sh",
-        "format": "prettier --write 'src/**/*.{js,cjs,css}'",
-        "format:check": "prettier --check 'src/**/*.{js,cjs,css}'"
+        "test": "node src/scripts/test.cjs",
+        "test:portable": "node src/scripts/test.cjs --portable",
+        "format": "prettier --write \"src/**/*.{js,cjs,css}\"",
+        "format:check": "prettier --check \"src/**/*.{js,cjs,css}\""
     },
     "devDependencies": {
         "prettier": "3.6.2"

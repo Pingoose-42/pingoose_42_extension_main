@@ -64,7 +64,7 @@ assert.match(columns.style, /padding-top: 6px/);
 console.log('PASS: bottom panel aligns all columns at the bottom; top panel remains top aligned');
 
 // Layout owns the shared host independently of whether general chat is enabled.
-const { Actor, controller: loadController } = require('./helpers.cjs');
+const { Actor, Signals, controller: loadController, moduleExport } = require('./helpers.cjs');
 class Columns extends Actor {
     insert_child_at_index(child, index) {
         this.children.splice(index, 0, child);
@@ -76,6 +76,12 @@ class Columns extends Actor {
     }
 }
 const hostMain = new Actor();
+const mainFrame = new Columns();
+const resizes = [];
+let inputMethod;
+const layoutSignals = new Signals();
+const stage = new Signals();
+stage.get_key_focus = () => null;
 let child = hostMain,
     animation;
 const close = function (value) {
@@ -107,6 +113,60 @@ const Layout = loadController('ui/layout.js', {
                 getCurrentExtension: () => ({
                     imports: {
                         ui: {
+                            inputMethodPopup: {
+                                Controller: class {
+                                    constructor(menu) {
+                                        this.menu = menu;
+                                        inputMethod = this;
+                                    }
+                                    destroy() {
+                                        this.destroyed = true;
+                                    }
+                                },
+                            },
+                            panelViewport: {
+                                mainViewport(box) {
+                                    mainFrame.add_child(box);
+                                    return mainFrame;
+                                },
+                                sideViewport(panel) {
+                                    const frame = new Columns();
+                                    frame.add_child(panel);
+                                    return frame;
+                                },
+                                Viewport: class {
+                                    constructor(actor, scroll, onAutomatic, content) {
+                                        Object.assign(this, {
+                                            actor,
+                                            scroll,
+                                            onAutomatic,
+                                            content,
+                                        });
+                                    }
+                                    revealFocus() {}
+                                },
+                            },
+                            panelResize: {
+                                Controller: class {
+                                    constructor(actor, viewport, settings, key, options) {
+                                        Object.assign(this, {
+                                            actor,
+                                            viewport,
+                                            settings,
+                                            key,
+                                            options,
+                                        });
+                                        resizes.push(this);
+                                    }
+                                    refresh() {}
+                                    cancel() {
+                                        this.cancelled = true;
+                                    }
+                                    destroy() {
+                                        this.destroyed = true;
+                                    }
+                                },
+                            },
                             reveal: {
                                 Reveal: class extends Columns {
                                     constructor(content) {
@@ -132,19 +192,37 @@ const Layout = loadController('ui/layout.js', {
                                 },
                             },
                         },
+                        models: {
+                            panelSize: {
+                                availableHeight: moduleExport(
+                                    'models/panelSize.js',
+                                    'availableHeight'
+                                ),
+                            },
+                        },
                     },
                 }),
             },
         },
-        gi: { St: { BoxLayout: Columns }, Clutter: { RequestMode: {}, ActorAlign: {} } },
-        ui: { boxpointer: { PopupAnimation: { NONE: 0 } } },
+        gi: {
+            St: { BoxLayout: Columns, Side: { TOP: 0, BOTTOM: 1 } },
+            Clutter: { RequestMode: {}, ActorAlign: {} },
+        },
+        ui: {
+            boxpointer: { PopupAnimation: { NONE: 0 } },
+            main: { layoutManager: layoutSignals },
+        },
     },
+    global: { display: new Signals(), stage },
 });
 const layout = new Layout(host, { get_int: () => 0 });
+assert.equal(inputMethod.menu, host.menu, 'layout owns the input-method popup integration');
 const side = new Actor();
 host.addPanel(side);
 host.bringPanelNearMain(side);
-assert.equal(host.sideColumns.children.at(-1), hostMain);
+assert.equal(host.sideColumns.children.at(-1), mainFrame);
+assert.equal(host.menu.box, hostMain, 'Shell retains the original menu item parent');
+assert.equal(hostMain.parent, mainFrame);
 assert.equal(child, host.sideColumns);
 host.menu.close();
 assert.equal(animation, 0);
@@ -157,16 +235,47 @@ host.bringPanelNearMain(projectPanel);
 host.bringPanelNearMain(side);
 assert.deepEqual(
     host.sideColumns.children.map((child) => child.childActor || child),
-    [servicePanel, projectPanel, side, hostMain]
+    [servicePanel, projectPanel, side, mainFrame]
 );
 host.setPanelVisible(side, true);
 assert.equal(host.sideColumns.children[2].visible, true);
 host.placePanelBefore(servicePanel, side);
 assert.deepEqual(
     host.sideColumns.children.map((child) => child.childActor || child),
-    [projectPanel, servicePanel, side, hostMain]
+    [projectPanel, servicePanel, side, mainFrame]
 );
+const sizedPanel = new Actor();
+const resize = host.addPanel(sizedPanel, { key: 'chat-panel-height', scroll: new Actor() });
+assert.equal(resize.key, 'chat-panel-height');
+assert.equal(resize.viewport.content, sizedPanel);
+assert.equal(resize.actor.get_children()[0], sizedPanel);
+host.setPanelVisible(sizedPanel, false);
+assert.equal(resize.cancelled, true, 'closing a side panel cancels its resize immediately');
+layoutSignals.findIndexForActor = () => 0;
+layoutSignals.getWorkAreaForMonitor = () => ({ y: 30, height: 1000 });
+host.get_transformed_position = () => [200, 0];
+host.get_transformed_size = () => [40, 30];
+mainFrame.get_transformed_size = () => [500, 600];
+mainFrame.height = 300;
+host.sideColumns.get_theme_node = () => ({ get_padding: () => 12 });
+assert.equal(
+    layout._resizeBounds(mainFrame).maximum,
+    484,
+    'work area uses actor scale and measured theme padding'
+);
+layout._bottom = true;
+host.get_transformed_position = () => [200, 1030];
+assert.equal(
+    layout._resizeBounds(mainFrame).maximum,
+    484,
+    'bottom anchor uses available area above the bar'
+);
+layout.destroy();
 layout.destroy();
 assert.equal(host.menu.close, close);
 assert.equal(host.bringPanelNearMain, null);
+assert.ok(resizes.every((resize) => resize.destroyed));
+assert.equal(inputMethod.destroyed, true);
+assert.equal(layoutSignals.signals.size, 0);
+assert.equal(stage.signals.size, 0);
 console.log('PASS: shared panel host belongs to layout and restores popup callbacks on teardown');

@@ -7,29 +7,16 @@ var Checker = class Checker {
     }
     run(login, slug, callback) {
         if (this.view) return;
-        const view = (this.view = new WebKit2.WebView({ web_context: this.context }));
-        view.get_settings().set_auto_load_images(false);
-        view.get_settings().set_enable_write_console_messages_to_stdout(false);
+        const view = (this.view = imports.worker.backgroundView.create(
+            this.context,
+            (uri) => this.allowedURI(uri),
+            { loadImages: false }
+        ));
         const finish = (value) => {
             if (this.view !== view) return;
             this.close();
             callback(value);
         };
-        view.connect('permission-request', (_view, request) => {
-            request.deny();
-            return true;
-        });
-        view.connect('decide-policy', (_view, decision, type) => {
-            if (
-                type === WebKit2.PolicyDecisionType.NEW_WINDOW_ACTION ||
-                (type === WebKit2.PolicyDecisionType.NAVIGATION_ACTION &&
-                    !this.allowedURI(decision.get_navigation_action().get_request().get_uri()))
-            ) {
-                decision.ignore();
-                return true;
-            }
-            return false;
-        });
         view.connect('load-failed', () => {
             finish(null);
             return false;

@@ -1,4 +1,4 @@
-const { Gio, GLib, WebKit2 } = imports.gi;
+const { Gio, GLib } = imports.gi;
 const ByteArray = imports.byteArray;
 
 var Controller = class Controller {
@@ -37,24 +37,11 @@ var Controller = class Controller {
         const avatarCached =
             (row.avatars || []).includes(login) &&
             Gio.File.new_for_path(`${this.stateDirectory}/counterpart-${login}`).query_exists(null);
-        const view = new WebKit2.WebView({ web_context: this.context });
-        if (avatarCached) view.get_settings().set_auto_load_images(false);
-        view.get_settings().set_enable_write_console_messages_to_stdout(false);
-        view.connect('permission-request', (_view, request) => {
-            request.deny();
-            return true;
-        });
-        view.connect('decide-policy', (_view, decision, type) => {
-            if (
-                type === WebKit2.PolicyDecisionType.NEW_WINDOW_ACTION ||
-                (type === WebKit2.PolicyDecisionType.NAVIGATION_ACTION &&
-                    !this.allowedURI(decision.get_navigation_action().get_request().get_uri()))
-            ) {
-                decision.ignore();
-                return true;
-            }
-            return false;
-        });
+        const view = imports.worker.backgroundView.create(
+            this.context,
+            (uri) => this.allowedURI(uri),
+            { loadImages: !avatarCached }
+        );
         let avatarSaved = false;
         let foundSeat = null;
         let confirmedUnavailable = false;

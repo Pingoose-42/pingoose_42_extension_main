@@ -181,8 +181,13 @@ Settings → 42 Services에서 HTTPS 사이트를 최대 30개까지 추가·수
 | Popup left margin | 9px, 0~100px |
 | Main–panel gap | 12px, 0~100px |
 | Panel–panel gap | 12px, 0~100px |
+| Panel Heights | 메인·채팅·메모·서비스 각각 0(자동). 숫자로 직접 지정하거나 가장자리를 드래그해 조절 |
 
 영역 순서는 ↑/↓로 편집한 뒤 **Apply**로 저장하고 Reset order로 기본 순서를 복원합니다. My Projects와 Logtime은 한 행을 공유하며, 숨긴 영역도 순서 위치를 유지합니다. 표시 스위치와 위치·간격 설정은 즉시 반영됩니다.
+
+메인·채팅·프로젝트 메모·서비스 패널의 높이는 각각 조절할 수 있습니다. 상단 바에 있는 핑구스는 패널 **아래쪽 가장자리와 양 모서리**, 하단 바에 있는 핑구스는 **위쪽 가장자리와 양 모서리**에 커서를 대면 크기 조절 커서가 표시됩니다. 왼쪽 버튼으로 드래그하면 높이가 바뀌고, 버튼을 놓을 때 저장됩니다. 너비와 바에 붙는 위치는 유지합니다. 드래그 중 `Esc`를 누르면 변경을 취소합니다.
+
+처음에는 기존 자동 높이를 사용하며, 드래그한 패널만 지정한 높이를 기억합니다. 화면의 사용 가능한 높이에 맞춰 표시 크기를 제한하고, 저장한 희망 높이는 유지합니다. **Panel Heights**에서 `0`을 입력하거나 **Reset panel heights**를 누르면 자동 높이로 돌아갑니다. 이 초기화는 패널 간격이나 다른 설정을 변경하지 않습니다.
 
 ### Projects
 
@@ -243,12 +248,17 @@ XDG 환경변수를 지정했다면 해당 경로를 사용합니다. 일반 Int
 프로젝트 루트에서 실행합니다.
 
 ```sh
+npm run test:portable
 bash src/scripts/test.sh
 bash src/scripts/test.sh --sockets
 bash src/scripts/package.sh /tmp/pingoose-release
 ```
 
 기본 검증은 JavaScript 문법, 회귀 테스트와 설정 스키마를 검사합니다. `--sockets`는 GJS 로컬 채팅 통신 테스트도 실행합니다. 실제 GNOME 화면 배치와 다른 좌석 PC 간 통신은 별도 확인이 필요합니다. 배포 패키지에는 실행 소스·에셋·스키마가 포함되며 테스트·개인 인증 데이터는 포함하지 않습니다.
+
+Windows에서는 Node만으로 `npm run test:portable`을 실행할 수 있습니다. JavaScript 문법과 Node 회귀 테스트를 실행하고, Linux Python·Bash·GSettings·GJS 검사를 실행하지 않았음을 별도로 표시합니다. Linux의 `npm test` 또는 기존 `bash src/scripts/test.sh`는 전체 검증을 실행합니다. 셸 스크립트와 JavaScript/CSS의 LF 줄바꿈은 `.gitattributes`로 유지합니다.
+
+높이 조절 변경의 실제 GNOME Shell 42 검증 항목은 [패널 리사이즈 검증 안내](docs/PANEL_RESIZE_VALIDATION.md)에 정리되어 있습니다.
 
 캘린더가 비활성화되거나 숨겨져 있으면 시스템 알림에서 Yes/No로 활성화 여부를 선택합니다. 캘린더 연동은 새 설치에서 기본 꺼짐이며 기존 사용자 설정은 유지합니다.
 

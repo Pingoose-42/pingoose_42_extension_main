@@ -13,6 +13,8 @@ Pingoose는 GNOME Shell UI와 별도 GTK/WebKit 워커로 실행됩니다. 설�
 | 초기화 | 워커 확인 응답과 종료 대기, 데이터 및 설정 초기화 | `services/reset.js` |
 | 도메인 UI | 각 목록의 상태, 메시지 구독, 사용자 동작, 렌더링 | `ui/slots.js`, `ui/evaluations.js`, `ui/agenda.js`, `ui/notifications.js` |
 | 패널 조립 | 공통 팝업 호스트, 설정 메뉴, 표시 순서, 여백과 위치 | `ui/settings.js`, `ui/visibility.js`, `ui/layout.js` |
+| 패널 크기 | 높이 계산, 드래그·포인터 정리, 내부 스크롤 영역 할당 | `models/panelSize.js`, `ui/panelResize.js`, `ui/panelViewport.js` |
+| 입력 후보창 | 팝업 겹침 순서, Shell 입력 후보에 한정한 포인터 전달 | `ui/inputMethodPopup.js` |
 | 화면 효과 | 플래시, 펼침 크기 전환, 팝업 이동, 애니메이션 설정과 수명 | `ui/screenFlash.js`, `ui/reveal.js`, `ui/popupMotion.js`, `ui/motionPreferences.js` |
 | 순수 모델 | 슬롯/평가/아젠다 규칙, 로그타임 합산, 메모 분리 | `models/` |
 | 저장 서비스 | 메모, 카드, 프로필/즐겨찾기 캐시의 파일 I/O | `services/projectNotes.js`, `cardStore.js`, `favoriteCache.js`, `profileCampusCache.js` |
@@ -20,6 +22,7 @@ Pingoose는 GNOME Shell UI와 별도 GTK/WebKit 워커로 실행됩니다. 설�
 | 워커 명령 | IPC 명령 해석과 입력 검증, 명시적으로 주입한 동작 호출 | `worker/commands.js` |
 | 워커 요청 | 슬롯 요청, 서비스/프로젝트 창의 개수 제한과 종료 | `worker/slots.js`, `worker/windows.js` |
 | 상대 프로필 조회 | 친구·좌석 조회, 평가 상대 조회, 각 웹뷰와 타이머 취소 | `worker/chatLookup.js`, `worker/counterpartLookup.js` |
+| 백그라운드 웹뷰 | 인증 컨텍스트 재사용, 콘솔·권한·새 창·이동 정책 | `worker/backgroundView.js` |
 | 입력 UI | 채팅 연결 입력·진행 상태, 메모 입력·커서 스크롤 | `ui/chatConnection.js`, `ui/noteEditor.js` |
 | 워커 수집기 | 아젠다, 클러스터 JSON, 프로필 DOM 수집 | `worker/agenda.js`, `worker/clusters.js`, `worker/profile.js` |
 | 설정 UI | GTK 설정 화면과 관리 창 | `prefs.js`, `preferences/` |
@@ -56,6 +59,8 @@ Pingoose는 GNOME Shell UI와 별도 GTK/WebKit 워커로 실행됩니다. 설�
 
 새 컴포넌트는 자신이 만든 시그널, 타이머, 팝업, 액터와 구독을 `destroy()`에서 정리해야 합니다. 진입점은 공통 타이머와 세션 훅을 먼저 중단하고, 서비스 및 뷰를 정리한 뒤 브리지와 인디케이터를 파괴합니다. 초기화 시에도 호출되는 컴포넌트의 종료 메서드는 중복 호출을 견뎌야 합니다.
 
+진입점은 생성이 완료된 컴포넌트를 즉시 등록합니다. 활성화 중 예외가 나면 이미 생성한 컴포넌트를 역순으로 정리하고 원래 예외를 다시 던집니다. 정상 활성화 후에는 기존의 명시적 종료 순서를 사용합니다. 종료 시 소유 목록을 먼저 비우고 각 정리를 개별 실행하므로, 한 컴포넌트의 예외가 나머지 자원의 정리를 막거나 반복 `disable()`이 같은 자원을 다시 정리하지 않습니다. 생성자 내부에서 아직 반환하지 않은 자원은 해당 컴포넌트가 직접 정리해야 합니다.
+
 로그아웃과 종료 시 워커는 조회 컴포넌트의 `clear()`를 호출합니다. 컴포넌트가 타이머와 웹뷰를 정리하고 늦은 콜백을 무시합니다. 평가가 삭제·변경된 뒤 도착한 사진 응답은 캐시 파일을 다시 만들지 않습니다. 슬롯 조회 결과도 시작한 인증 세션에만 반영합니다.
 
 `layout`은 공통 패널 호스트와 패널 재배치를 소유합니다. 채팅·서비스·메모 패널은 준비된 호스트에 자신의 액터만 추가합니다. 사이드 패널은 `addPanel`로 등록하고 `setPanelVisible`로 표시 의도를 전달합니다. `reveal`은 내용물의 자연 크기를 유지한 채 할당 영역을 전환하며, 펼침 여부와 전환 중 실제 표시 여부를 분리합니다. 따라서 닫히는 중인 채팅을 읽고 있는 것으로 판정하지 않습니다. 반복된 상태 갱신은 전환을 재시작하지 않으며 반대 방향 토글은 현재 진행률에서 이어집니다. 외부 숨김(점검·부모 팝업 닫힘) 시 전환을 정리하며 숨겨진 액터를 다시 표시하지 않습니다.
@@ -66,11 +71,18 @@ Pingoose는 GNOME Shell UI와 별도 GTK/WebKit 워커로 실행됩니다. 설�
 
 `popupMotion`은 Shell의 기본 팝업 포커스·입력 차단·모달 수명과 완료 시그널을 유지하면서 페이드 시간과 열 배치의 이동만 제어합니다. 자동 사이드패널 닫기는 팝업이 사라진 후 적용합니다. `motionPreferences`가 시스템의 애니메이션 설정 및 General의 On/Off·지속시간을 함께 판단합니다. 액터 파괴 시 전환과 설정 시그널을 정리하고 팝업의 원래 열기·닫기 콜백을 복원합니다.
 
+패널 높이는 `layout`이 소유하는 별도 컨트롤러가 관리합니다. `panelSize`는 좌표·높이 제한만 계산하고, `panelResize`는 커서·드래그·임시 grab·저장 시점을, `panelViewport`는 내부 스크롤 영역을 담당합니다. 메인 메뉴의 `menu.box`는 메뉴 항목의 부모로 유지합니다. 바에 붙는 위치와 너비를 유지하며 바에서 먼 쪽 가장자리만 드래그합니다. 높이 설정 `0`은 기존 자동 크기이며, 드래그 중에는 미리보기만 적용하고 정상적인 버튼 release에 한 번 저장합니다. 모니터에 맞춰 제한한 표시 높이를 저장된 희망 높이에 덮어쓰지 않습니다. 메뉴 닫힘·패널 숨김·환경 변경·종료는 진행 중인 드래그를 취소합니다.
+
+`inputMethodPopup`은 메뉴가 열릴 때 핑구스 액터만 네이티브 팝업 레이어 아래로 배치합니다. GNOME 42의 메뉴 열기는 자신을 맨 위로 올리지만, IBus 후보창은 키보드 레이어 바로 위까지만 올라가기 때문에 생기는 겹침을 방지합니다. 같은 부모를 가진 레이어만 기준으로 사용하며 다른 창·후보창의 부모나 전역 메서드를 변경하지 않습니다. 포인터 전달은 메뉴가 열려 있고, 메뉴 안의 편집 가능한 텍스트에 포커스가 있으며, 현재 grab이 해당 메뉴이고, 실제 대상이 표시된 Shell 후보창에 속한 경우로 한정합니다. 크기 조절·다른 모달의 grab이나 일반 바깥 클릭은 기존 경로를 유지합니다. 외부 GTK 이모지 창의 포커스·입력 grab은 이 컨트롤러가 관리하지 않습니다.
+
+백그라운드 웹뷰 생성 정책은 `worker/backgroundView`로 공유하지만, 조회 타이머·취소·응답 처리·뷰 파괴는 원래 호출부가 소유합니다. 사용자에게 보이는 로그인·서비스 웹뷰는 다른 이동·팝업 정책을 사용하므로 이 헬퍼로 통합하지 않습니다.
+
 Shell 전용 `St`·`Main`을 워커에서 가져오지 않습니다. 인증 정보는 워커 내부에서만 사용하고 IPC나 로그에 넣지 않습니다. 저장 경로 및 GSettings 키를 바꿀 때는 기존 데이터 호환성을 별도로 검증합니다.
 
 ## 검증과 포맷
 
 ```sh
+npm run test:portable
 bash src/scripts/test.sh
 bash src/scripts/test.sh --sockets
 
@@ -79,6 +91,8 @@ npm ci --ignore-scripts
 npm run format:check
 npm run format
 ```
+
+`src/scripts/test.cjs`가 공통 검사 목록을 실행하고 기존 Bash 진입점은 이를 호출합니다. `--portable`은 Windows에서도 실행할 수 있는 JavaScript 문법·Node 회귀 검사만 수행하며 생략한 Linux 검사를 명시합니다. 기본 모드에서는 Python 업데이트·설치 검사, Bash 문법, GSettings 스키마 검사를 모두 요구하며, `--sockets`는 GJS 채팅 검사를 추가합니다. 하나라도 실패하거나 필요한 도구가 없으면 실패 상태를 반환합니다.
 
 `.prettierrc.json`은 4칸 들여쓰기, 100열 기준 줄바꿈을 정의합니다. 주입되는 WebKit 스크립트 문자열은 자동 재해석하지 않습니다.
 

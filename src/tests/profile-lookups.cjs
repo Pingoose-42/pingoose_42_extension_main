@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { controller, Signals } = require('./helpers.cjs');
+const { controller, moduleExport, Signals } = require('./helpers.cjs');
 let timerId = 1,
     identity = {},
     campus = 'gyeongsan',
@@ -83,6 +83,9 @@ const imports = {
         featureFlags: { enabled: () => true },
         favoriteProfile: require('../models/favoriteProfile.js'),
     },
+};
+imports.worker = {
+    backgroundView: { create: moduleExport('worker/backgroundView.js', 'create', { imports }) },
 };
 const ChatLookup = controller('worker/chatLookup.js', { imports });
 const lookup = new ChatLookup({

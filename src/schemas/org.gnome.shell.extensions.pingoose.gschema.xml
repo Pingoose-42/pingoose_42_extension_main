@@ -70,6 +70,10 @@
     <key name="popup-left-margin" type="i"><range min="0" max="100"/><default>9</default><summary>Popup offset to the left</summary></key>
     <key name="main-panel-gap" type="i"><range min="0" max="100"/><default>12</default><summary>Gap between main page and nearest panel</summary></key>
     <key name="panel-gap" type="i"><range min="0" max="100"/><default>12</default><summary>Gap between side panels</summary></key>
+    <key name="main-panel-height" type="i"><range min="0" max="4096"/><default>0</default><summary>Main panel height in logical pixels</summary><description>Zero preserves automatic sizing. The visible height is limited to the available screen area.</description></key>
+    <key name="chat-panel-height" type="i"><range min="0" max="4096"/><default>0</default><summary>Cluster Chat panel height in logical pixels</summary><description>Zero preserves automatic sizing. The visible height is limited to the available screen area.</description></key>
+    <key name="project-panel-height" type="i"><range min="0" max="4096"/><default>0</default><summary>Project notes panel height in logical pixels</summary><description>Zero preserves automatic sizing. The visible height is limited to the available screen area.</description></key>
+    <key name="service-panel-height" type="i"><range min="0" max="4096"/><default>0</default><summary>42 Services panel height in logical pixels</summary><description>Zero preserves automatic sizing. The visible height is limited to the available screen area.</description></key>
     <key name="section-order" type="as">
       <default>['profile', 'overview', 'slots', 'evaluations', 'agenda', 'notifications', 'chat', 'services']</default>
       <summary>Main page section order</summary>

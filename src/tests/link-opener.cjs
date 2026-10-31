@@ -36,7 +36,10 @@ const mockSettingsDisabled = {
     },
 };
 
-openLink(mockSettingsDisabled, mockBridge, { name: '42 Intra', url: 'https://profile.intra.42.fr/' });
+openLink(mockSettingsDisabled, mockBridge, {
+    name: '42 Intra',
+    url: 'https://profile.intra.42.fr/',
+});
 assert.equal(launched.length, 0);
 assert.equal(bridgeSent.length, 1);
 assert.match(bridgeSent[0], /^service:open:/);
@@ -57,7 +60,10 @@ const mockSettingsEnabled = {
     },
 };
 
-openLink(mockSettingsEnabled, mockBridge, { name: '42 Intra', url: 'https://profile.intra.42.fr/' });
+openLink(mockSettingsEnabled, mockBridge, {
+    name: '42 Intra',
+    url: 'https://profile.intra.42.fr/',
+});
 assert.equal(launched.length, 1);
 assert.equal(launched[0], 'https://profile.intra.42.fr/');
 assert.equal(bridgeSent.length, 0, 'Must not send IPC when opened in default browser');
@@ -67,4 +73,6 @@ assert.equal(launched.length, 2);
 assert.equal(launched[1], 'https://projects.intra.42.fr/libft/cadet');
 assert.equal(bridgeSent.length, 0);
 
-console.log('PASS: open-in-browser setting correctly routes links to default browser or webview IPC');
+console.log(
+    'PASS: open-in-browser setting correctly routes links to default browser or webview IPC'
+);

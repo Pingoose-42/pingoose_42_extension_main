@@ -264,8 +264,9 @@ var SlotsService = class SlotsService {
         }
         const { WebKit2, GLib } = imports.gi;
         this.busy = true;
-        const view = (this.view = new WebKit2.WebView({ web_context: this.context }));
-        view.get_settings().set_enable_write_console_messages_to_stdout(false);
+        const view = (this.view = imports.worker.backgroundView.create(this.context, (uri) =>
+            this.allowedURI(uri)
+        ));
         let started = false,
             reading = false,
             attempts = 0;
@@ -274,21 +275,6 @@ var SlotsService = class SlotsService {
             if (result.rows) this.rows = result.rows;
             callback(result);
         };
-        view.connect('permission-request', (_view, request) => {
-            request.deny();
-            return true;
-        });
-        view.connect('decide-policy', (_view, decision, type) => {
-            if (
-                type === WebKit2.PolicyDecisionType.NEW_WINDOW_ACTION ||
-                (type === WebKit2.PolicyDecisionType.NAVIGATION_ACTION &&
-                    !this.allowedURI(decision.get_navigation_action().get_request().get_uri()))
-            ) {
-                decision.ignore();
-                return true;
-            }
-            return false;
-        });
         view.connect('load-changed', (_view, event) => {
             if (
                 started ||

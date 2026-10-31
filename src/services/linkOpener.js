@@ -9,9 +9,10 @@ function openLink(settings, bridge, site) {
 
     if (settings && settings.get_boolean('open-in-browser')) {
         try {
-            const context = typeof global !== 'undefined' && global.create_app_launch_context
-                ? global.create_app_launch_context(0, -1)
-                : null;
+            const context =
+                typeof global !== 'undefined' && global.create_app_launch_context
+                    ? global.create_app_launch_context(0, -1)
+                    : null;
             Gio.AppInfo.launch_default_for_uri(site.url, context);
             return;
         } catch (_) {
@@ -32,9 +33,10 @@ function openProject(settings, bridge, project) {
     if (settings && settings.get_boolean('open-in-browser')) {
         const url = `https://projects.intra.42.fr/${project.slug}/${project.login || ''}`;
         try {
-            const context = typeof global !== 'undefined' && global.create_app_launch_context
-                ? global.create_app_launch_context(0, -1)
-                : null;
+            const context =
+                typeof global !== 'undefined' && global.create_app_launch_context
+                    ? global.create_app_launch_context(0, -1)
+                    : null;
             Gio.AppInfo.launch_default_for_uri(url, context);
             return;
         } catch (_) {

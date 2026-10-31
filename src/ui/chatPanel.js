@@ -218,7 +218,6 @@ var ChatPanel = class ChatPanel {
             style_class: 'pingoose-chat pingoose-chat-panel',
         });
         ui.root = root;
-        indicator.addPanel(root);
         const item = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
         item.remove_all_children();
         item.add_style_class_name('pingoose-overview-item');
@@ -374,6 +373,7 @@ var ChatPanel = class ChatPanel {
         inputRow.add_child(ui.entry);
         inputRow.add_child(ui.send);
         root.add_child(inputRow);
+        indicator.addPanel(root, { key: 'chat-panel-height', scroll });
         const submit = () => {
             if (!this._chatActive || !this._chat.send(this._chatActive, ui.entry.text)) return;
             ui.entry.text = '';

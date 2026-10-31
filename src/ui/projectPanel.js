@@ -16,7 +16,6 @@ var ProjectPanel = class ProjectPanel {
             y_align: Clutter.ActorAlign.START,
             style_class: 'pingoose-chat-panel pingoose-project-panel',
         });
-        indicator.addPanel(this.root);
         const header = new St.BoxLayout({ style_class: 'pingoose-chat-header' });
         this.title = new St.Label({
             text: 'Project',
@@ -90,6 +89,11 @@ var ProjectPanel = class ProjectPanel {
         this.root.add_child(this.status);
         this.visitButton = this.button('Visit Project Page', () => this.visit(this.project));
         this.root.add_child(this.visitButton);
+        this.panelSize = indicator.addPanel(this.root, {
+            key: 'project-panel-height',
+            scroll: this.listScroll,
+            onAutomatic: () => this.syncListHeight(),
+        });
         this.monitor = Notes.file().get_parent().monitor_directory(Gio.FileMonitorFlags.NONE, null);
         this.monitor.connect('changed', (_monitor, file, other, event) => {
             if (![file?.get_basename(), other?.get_basename()].includes('projects.json')) return;
@@ -114,10 +118,16 @@ var ProjectPanel = class ProjectPanel {
         });
     }
     syncListHeight() {
+        if (this.panelSize && !this.panelSize.naturalContent) return;
         if (this.listHeightLater) return;
         this.listHeightLater = Meta.later_add(Meta.LaterType.BEFORE_REDRAW, () => {
             this.listHeightLater = 0;
-            if (!this.listScroll.mapped || this.list.width <= 0) return GLib.SOURCE_REMOVE;
+            if (
+                (this.panelSize && !this.panelSize.naturalContent) ||
+                !this.listScroll.mapped ||
+                this.list.width <= 0
+            )
+                return GLib.SOURCE_REMOVE;
             // ScrollView's unconstrained natural height misses soft wrapping.
             // Measure the cards at their allocated width after labels have grown.
             const [, contentHeight] = this.list.get_preferred_height(this.list.width);

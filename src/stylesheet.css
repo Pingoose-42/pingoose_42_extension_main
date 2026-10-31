@@ -796,6 +796,13 @@
     border-radius: 14px;
 }
 
+/* Outer scrollbars are overlays: custom heights never change panel widths.
+ * Side frames scroll only when a small work area cannot fit their controls. */
+.pingoose-main-viewport > StScrollBar,
+.pingoose-panel-viewport > StScrollBar {
+    min-width: 8px;
+}
+
 .pingoose-agenda-card {
     padding: 20px 10px 10px;
     spacing: 18px;

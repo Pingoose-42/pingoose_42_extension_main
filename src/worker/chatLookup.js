@@ -1,4 +1,4 @@
-const { GLib, WebKit2 } = imports.gi;
+const { GLib } = imports.gi;
 const ByteArray = imports.byteArray;
 
 var Controller = class Controller {
@@ -36,10 +36,12 @@ var Controller = class Controller {
             return;
         }
         const identity = this.current();
-        const view = new WebKit2.WebView({ web_context: this.context });
+        const view = imports.worker.backgroundView.create(
+            this.context,
+            (uri) => this.allowedURI(uri),
+            { loadImages: !request.stateOnly }
+        );
         this.chatLookup = view;
-        view.get_settings().set_enable_write_console_messages_to_stdout(false);
-        if (request.stateOnly) view.get_settings().set_auto_load_images(false);
         let attempts = 0,
             reading = false,
             profile = null,
@@ -137,21 +139,6 @@ var Controller = class Controller {
                 images.set(uri, resource);
                 resource.connect('finished', readAvatar);
             });
-        view.connect('permission-request', (_view, permission) => {
-            permission.deny();
-            return true;
-        });
-        view.connect('decide-policy', (_view, decision, type) => {
-            if (
-                type === WebKit2.PolicyDecisionType.NEW_WINDOW_ACTION ||
-                (type === WebKit2.PolicyDecisionType.NAVIGATION_ACTION &&
-                    !this.allowedURI(decision.get_navigation_action().get_request().get_uri()))
-            ) {
-                decision.ignore();
-                return true;
-            }
-            return false;
-        });
         timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
             if (++attempts > 15 || this.current() !== identity) {
                 finish(null);
