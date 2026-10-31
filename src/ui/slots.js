@@ -609,7 +609,8 @@ var Controller = class Controller {
             x_align: Clutter.ActorAlign.END,
             style_class: 'pingoose-clear-button',
         });
-        all.connect('clicked', () => this._requestSlots('slots:all'));
+        this._trackActionButton(all, 'Close All Slots', 'close-all');
+        all.connect('clicked', () => this._requestSlots('slots:all', 'close-all'));
         closeRow.add_child(all);
         section.addMenuItem(closeRow);
     }
