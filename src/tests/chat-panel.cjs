@@ -34,7 +34,13 @@ const probe = () => Object.create(Panel.prototype);
 const p = probe();
 p._settings = { set_boolean() {}, get_boolean: () => true, get_strv: () => [] };
 p._blocked = [];
-p._indicator = { loginOnly: false, menu: { isOpen: true } };
+p._indicator = {
+    loginOnly: false,
+    menu: { isOpen: true },
+    setPanelVisible(root, visible) {
+        root.visible = visible;
+    },
+};
 p.connection = { reset() {} };
 p._chatUi = {
     item: {},

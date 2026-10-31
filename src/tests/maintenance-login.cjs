@@ -155,6 +155,33 @@ maintenance.bypassEnd = null;
 time = schedule.end;
 indicator.onLoginStateChanged();
 assert.equal(maintenance.item.visible, false, 'expired cached schedule stays hidden');
+// Auto-close waits for the fade, but still works with animations disabled.
+let closedPanels = 0;
+control._servicePanel =
+    control._projectPanel =
+    control._chatPanel =
+        {
+            close() {
+                closedPanels++;
+            },
+        };
+settings.get_boolean = (key) => key === 'auto-close-panels';
+menu.isOpen = false;
+menu.actor.visible = true;
+menu.emit('open-state-changed', false);
+assert.equal(closedPanels, 0, 'side panels remain intact while popup fades');
+menu.actor.visible = false;
+menu.emit('menu-closed');
+assert.equal(closedPanels, 3, 'auto-close runs after the fade');
+menu.isOpen = true;
+menu.emit('menu-closed');
+assert.equal(closedPanels, 3, 'late close cannot clear a reopened popup');
+menu.isOpen = false;
+menu.emit('open-state-changed', false);
+assert.equal(closedPanels, 6, 'instant close also clears side panels');
+settings.get_boolean = () => false;
+menu.emit('menu-closed');
+assert.equal(closedPanels, 6, 'disabled auto-close preserves panel state');
 control.destroy();
 maintenance.destroy();
 console.log(

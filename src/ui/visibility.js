@@ -109,8 +109,12 @@ var Controller = class Controller {
 
         if (indicator.slotsButtonItem)
             indicator.slotsButtonItem.visible = !indicator.loginOnly && enabled('slots');
-        if (indicator.slotsItem)
-            indicator.slotsItem.visible = slotsExpanded && !indicator.loginOnly && enabled('slots');
+        if (indicator.slotReveal) {
+            const visible = slotsExpanded && !indicator.loginOnly && enabled('slots');
+            if (visible) indicator.slotsItem.show();
+            indicator.slotReveal.setExpanded(visible);
+            indicator.slotsItem.visible = indicator.slotReveal.visible;
+        }
         if (indicator.profileSeparator)
             indicator.profileSeparator.visible = !indicator.loginOnly && enabled('profile');
         if (indicator.profileItem)

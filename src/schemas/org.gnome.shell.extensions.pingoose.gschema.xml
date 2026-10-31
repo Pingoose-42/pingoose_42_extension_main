@@ -30,6 +30,8 @@
     <key name="logout-request" type="s"><default>''</default><summary>Confirmed logout request</summary></key>
     <key name="hidden-options-unlocked" type="b"><default>false</default><summary>Hidden Options unlocked on this computer</summary></key>
     <key name="hidden-dev-options" type="b"><default>false</default><summary>Show developer actions</summary></key>
+    <key name="panel-animations" type="b"><default>true</default><summary>Animate panels and sections</summary></key>
+    <key name="panel-animation-duration" type="i"><range min="100" max="500"/><default>200</default><summary>Panel transition duration in milliseconds</summary></key>
     <key name="topbar-animation" type="b"><default>true</default><summary>Animate the Pingoose top bar icon</summary></key>
     <key name="expand-services" type="b"><default>false</default><summary>Expand services panel</summary></key>
     <key name="expand-chat" type="b"><default>false</default><summary>Expand chat panel</summary></key>

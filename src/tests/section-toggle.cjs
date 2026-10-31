@@ -39,7 +39,12 @@ vm.runInContext(
     context
 );
 for (const title of ['Agenda', 'Evaluation Info', 'Notifications']) {
-    const content = { visible: true },
+    const content = {
+            visible: true,
+            setExpanded(value) {
+                this.visible = value;
+            },
+        },
         button = new context.Probe()._sectionToggle(title, content);
     button.updateCount(3);
     assert.equal(button.get_child().text, title + ' · 3');

@@ -1,5 +1,6 @@
 const { Clutter, St } = imports.gi;
 const Main = imports.ui.main;
+const Me = imports.misc.extensionUtils.getCurrentExtension();
 
 var Controller = class Controller {
     constructor(indicator, settings) {
@@ -15,7 +16,7 @@ var Controller = class Controller {
         main.x_expand = false;
         main.y_expand = false;
         main.y_align = Clutter.ActorAlign.START;
-        bin.remove_child(main);
+        bin.set_child(null);
         indicator.menu.actor.add_style_class_name('pingoose-panel-host');
         main.add_style_class_name('pingoose-main-panel');
         const columns = new St.BoxLayout({
@@ -25,13 +26,27 @@ var Controller = class Controller {
         columns.add_child(main);
         bin.set_child(columns);
         indicator.sideColumns = columns;
-        // Avoid the shared popup outline sliding past independently sized panels on close.
-        this._originalClose = indicator.menu.close;
-        indicator.menu.close = () =>
-            this._originalClose.call(indicator.menu, imports.ui.boxpointer.PopupAnimation.NONE);
+        this._panels = new Map();
+        this._motion = new Me.imports.ui.popupMotion.Controller(
+            indicator.menu,
+            columns,
+            () => this._bottom
+        );
+        indicator.addPanel = (panel) => {
+            const reveal = new Me.imports.ui.reveal.Reveal(panel, true);
+            this._panels.set(panel, reveal);
+            columns.insert_child_at_index(reveal, 0);
+            reveal.connect('notify::visible', () => this._applyPanelLayout());
+        };
+        indicator.setPanelVisible = (panel, visible) => {
+            this._panels.get(panel).setExpanded(visible, indicator.menu.isOpen);
+        };
+        indicator.placePanelBefore = (panel, sibling) => {
+            columns.set_child_below_sibling(this._panels.get(panel), this._panels.get(sibling));
+        };
         // Main stays last; moving a panel immediately before it preserves the others' order.
         indicator.bringPanelNearMain = (panel) => {
-            columns.set_child_below_sibling(panel, main);
+            columns.set_child_below_sibling(this._panels.get(panel), main);
             indicator.syncPanelLayout?.();
         };
     }
@@ -39,7 +54,12 @@ var Controller = class Controller {
     destroy() {
         this._indicator.syncPanelLayout = null;
         this._indicator.bringPanelNearMain = null;
-        this._indicator.menu.close = this._originalClose;
+        this._motion.destroy();
+        this._indicator.addPanel = null;
+        this._indicator.setPanelVisible = null;
+        this._indicator.placePanelBefore = null;
+        for (const reveal of this._panels.values()) reveal.destroy();
+        this._panels.clear();
     }
 
     applyPanelLayout() {
@@ -59,6 +79,7 @@ var Controller = class Controller {
         } catch (_) {
             /* Fall back to the standard top panel before allocation. */
         }
+        this._bottom = bottom;
         const alignment = bottom ? Clutter.ActorAlign.END : Clutter.ActorAlign.START;
         for (const child of columns.get_children()) {
             child.y_expand = false;
@@ -71,7 +92,7 @@ var Controller = class Controller {
             .get_children()
             .filter((child) => child !== indicator.menu.box && child.visible);
         panels.forEach((panel, index) =>
-            panel.set_style(
+            (panel.childActor || panel).set_style(
                 `margin-right: ${settings.get_int(index === panels.length - 1 ? 'main-panel-gap' : 'panel-gap')}px;`
             )
         );
