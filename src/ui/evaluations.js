@@ -235,11 +235,20 @@ var Controller = class Controller {
                 this._optionsManager.addMenu(menu);
                 menu.addAction('Visit Profile Page', () => {
                     this._indicator?.menu.close();
-                    const payload = JSON.stringify({
-                        name: login,
-                        url: 'https://profile.intra.42.fr/users/' + encodeURIComponent(login),
-                    });
-                    this._bridge.send('service:open:' + payload);
+                    const ext = imports.misc.extensionUtils.getCurrentExtension();
+                    const LinkOpener = ext.imports.services?.linkOpener;
+                    if (LinkOpener) {
+                        LinkOpener.openLink(this._settings, this._bridge, {
+                            name: login,
+                            url: 'https://profile.intra.42.fr/users/' + encodeURIComponent(login),
+                        });
+                    } else {
+                        const payload = JSON.stringify({
+                            name: login,
+                            url: 'https://profile.intra.42.fr/users/' + encodeURIComponent(login),
+                        });
+                        this._bridge.send('service:open:' + payload);
+                    }
                 });
                 const parentSignal = this._indicator?.menu.connect(
                     'open-state-changed',

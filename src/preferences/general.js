@@ -14,6 +14,11 @@ function build(settings) {
     const autoClose = new Gtk.Switch({ valign: Gtk.Align.CENTER });
     settings.bind('auto-close-panels', autoClose, 'active', Gio.SettingsBindFlags.DEFAULT);
     Common.row(box, 'Auto-close side panels', autoClose);
+    Common.sectionHeading(box, 'Web Browser & Links');
+    const openInBrowser = new Gtk.Switch({ valign: Gtk.Align.CENTER });
+    settings.bind('open-in-browser', openInBrowser, 'active', Gio.SettingsBindFlags.DEFAULT);
+    Common.row(box, 'Open links in default browser', openInBrowser);
+
     Common.sectionHeading(box, 'Logtime');
     const secondsMode = new Gtk.ComboBoxText();
     secondsMode.append('truncate', 'Whole minutes per day');

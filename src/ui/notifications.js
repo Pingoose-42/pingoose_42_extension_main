@@ -188,13 +188,22 @@ var Controller = class Controller {
         if (!url) return null;
         return () => {
             this._indicator?.menu.close();
-            this._bridge.send(
-                'service:open:' +
-                    JSON.stringify({
-                        name: 'Agenda feedback',
-                        url,
-                    })
-            );
+            const ext = imports.misc.extensionUtils.getCurrentExtension();
+            const LinkOpener = ext.imports.services?.linkOpener;
+            if (LinkOpener) {
+                LinkOpener.openLink(this._settings, this._bridge, {
+                    name: 'Agenda feedback',
+                    url,
+                });
+            } else {
+                this._bridge.send(
+                    'service:open:' +
+                        JSON.stringify({
+                            name: 'Agenda feedback',
+                            url,
+                        })
+                );
+            }
         };
     }
 

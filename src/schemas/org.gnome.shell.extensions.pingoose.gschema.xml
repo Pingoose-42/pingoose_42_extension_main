@@ -89,7 +89,8 @@
       <summary>First tab when opening project notes</summary>
     </key>
     <key name="project-open-direct" type="b"><default>false</default><summary>Open project website instead of notes panel</summary></key>
-  <key name="notify-evaluations" type="b"><default>true</default><summary>Evaluation system notifications</summary></key>
+    <key name="open-in-browser" type="b"><default>false</default><summary>Open external links in default web browser instead of built-in webview</summary></key>
+    <key name="notify-evaluations" type="b"><default>true</default><summary>Evaluation system notifications</summary></key>
     <key name="notify-agenda" type="b"><default>true</default><summary>Agenda system notifications</summary></key>
     <key name="notify-chat" type="b"><default>true</default><summary>Chat system notifications</summary></key>
     <key name="warn-open-slots-on-logout" type="b"><default>true</default><summary>Warn about open slots, scheduled evaluations and pending feedback before logout</summary></key>

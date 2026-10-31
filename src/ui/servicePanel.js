@@ -192,8 +192,14 @@ var ServicePanel = class ServicePanel {
     open(site) {
         if (!this.settings.get_boolean('service-enabled')) return;
         try {
-            this.send('service:open:' + JSON.stringify(site));
             this.indicator.menu.close();
+            const ext = imports.misc.extensionUtils.getCurrentExtension();
+            const LinkOpener = ext.imports.services?.linkOpener;
+            if (LinkOpener) {
+                LinkOpener.openLink(this.settings, { send: (cmd) => this.send(cmd) }, site);
+            } else {
+                this.send('service:open:' + JSON.stringify(site));
+            }
         } catch (_) {
             Main.notify('42 Services', 'Unable to open the website.');
         }

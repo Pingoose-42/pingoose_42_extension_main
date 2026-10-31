@@ -8,6 +8,7 @@ Pingoose는 GNOME Shell UI와 별도 GTK/WebKit 워커로 실행됩니다. 설�
 | --- | --- | --- |
 | 진입점 | 컴포넌트 생성, 의존성 연결, 공통 시계, 종료 순서 | `src/extension.js` |
 | 워커 통신 | subprocess, stdin 큐, stdout JSON 디스패치 | `services/workerBridge.js` |
+| 링크 및 브라우저 | 웹뷰/기본 브라우저 선택 분기 | `services/linkOpener.js` |
 | 로그인 세션 | 계정 전환, 프로필/상태 표시, 로그인 후 복원 | `services/session.js` |
 | 초기화 | 워커 확인 응답과 종료 대기, 데이터 및 설정 초기화 | `services/reset.js` |
 | 도메인 UI | 각 목록의 상태, 메시지 구독, 사용자 동작, 렌더링 | `ui/slots.js`, `ui/evaluations.js`, `ui/agenda.js`, `ui/notifications.js` |

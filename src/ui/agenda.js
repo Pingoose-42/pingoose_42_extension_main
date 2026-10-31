@@ -187,13 +187,22 @@ var Controller = class Controller {
             });
             feedback.connect('clicked', () => {
                 this._indicator.menu.close();
-                this._bridge.send(
-                    'service:open:' +
-                        JSON.stringify({
-                            name: row.name.slice(0, 80),
-                            url: feedbackUrl,
-                        })
-                );
+                const ext = imports.misc.extensionUtils.getCurrentExtension();
+                const LinkOpener = ext.imports.services?.linkOpener;
+                if (LinkOpener) {
+                    LinkOpener.openLink(this._settings, this._bridge, {
+                        name: row.name.slice(0, 80),
+                        url: feedbackUrl,
+                    });
+                } else {
+                    this._bridge.send(
+                        'service:open:' +
+                            JSON.stringify({
+                                name: row.name.slice(0, 80),
+                                url: feedbackUrl,
+                            })
+                    );
+                }
             });
             box.add_child(feedback);
         }

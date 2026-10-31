@@ -18,7 +18,9 @@ class Pingoose {
         const send = (command) => bridge.send(command);
         const visitProject = (project) => {
             indicator.menu.close();
-            send('project:open:' + JSON.stringify(project));
+            const LinkOpener = Me.imports.services?.linkOpener;
+            if (LinkOpener) LinkOpener.openProject(settings, bridge, project);
+            else send('project:open:' + JSON.stringify(project));
         };
         const notificationsSettings = new Gio.Settings({
             schema_id: 'org.gnome.desktop.notifications',

@@ -136,7 +136,16 @@ var Controller = class Controller {
         this._optionsManager.addMenu(settings);
         settings.addAction('Visit 42 Intra', () => {
             indicator.menu.close();
-            this._bridge.send('show');
+            const ext = imports.misc.extensionUtils.getCurrentExtension();
+            const LinkOpener = ext.imports.services?.linkOpener;
+            if (LinkOpener) {
+                LinkOpener.openLink(this._settings, this._bridge, {
+                    name: '42 Intra',
+                    url: 'https://profile.intra.42.fr/',
+                });
+            } else {
+                this._bridge.send('show');
+            }
         });
         settings.addAction('Refresh', () => {
             settings.close();
