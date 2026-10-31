@@ -180,7 +180,11 @@ const Favorites = moduleExport('ui/favorites.js', 'Panel', {
                     imports: {
                         models: { featureFlags: {} },
                         services: { favoriteCache: { read: () => [] } },
-                        ui: { reveal: { Reveal }, spinner: { create: () => new Actor() } },
+                        ui: {
+                            panelContent: { Panel: Actor },
+                            reveal: { Reveal },
+                            spinner: { create: () => new Actor() },
+                        },
                     },
                 }),
             },

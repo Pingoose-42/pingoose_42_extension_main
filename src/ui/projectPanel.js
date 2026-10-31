@@ -8,7 +8,7 @@ var ProjectPanel = class ProjectPanel {
         this.visit = visit;
         this.kind = 'todo';
         this.drafts = new Map();
-        this.root = new St.BoxLayout({
+        this.root = new Me.imports.ui.panelContent.Panel({
             vertical: true,
             reactive: true,
             visible: false,

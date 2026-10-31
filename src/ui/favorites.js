@@ -23,7 +23,7 @@ var Panel = class Panel {
         this.removed = new Set();
         this.queue = [];
         this.expanded = false;
-        this.root = new St.BoxLayout({
+        this.root = new Me.imports.ui.panelContent.Panel({
             vertical: true,
             visible: false,
             reactive: true,

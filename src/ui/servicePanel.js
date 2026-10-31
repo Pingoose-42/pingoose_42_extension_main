@@ -10,7 +10,7 @@ var ServicePanel = class ServicePanel {
         this.settings = imports.misc.extensionUtils.getSettings();
         this.expanded = this.settings.get_boolean('expand-services');
         this.previews = new Set();
-        this.root = new St.BoxLayout({
+        this.root = new Me.imports.ui.panelContent.Panel({
             vertical: true,
             reactive: true,
             visible: false,

@@ -217,7 +217,7 @@ var ChatPanel = class ChatPanel {
         this._chat = new Chat.ChatService(Chat.PORT, this._blocked);
         this._chatActive = null;
         const ui = (this._chatUi = { stick: true });
-        const root = new St.BoxLayout({
+        const root = new Me.imports.ui.panelContent.Panel({
             vertical: true,
             reactive: true,
             visible: false,
