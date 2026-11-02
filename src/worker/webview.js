@@ -178,7 +178,10 @@ class Worker {
             header.set_title(title);
         };
         this.view.connect('notify::title', syncPageTitle);
-        this.navigation = imports.worker.navigation.create(this.view, this.window);
+        this.navigation = imports.worker.navigation.create(this.view, this.window, {
+            history: false,
+            reload: () => this.refreshLoginPage(),
+        });
         this.navigation.set_no_show_all(true);
         this.navigation.hide();
         header.pack_start(this.navigation);
@@ -1220,6 +1223,36 @@ class Worker {
         if (!this.pending) this.poll();
     }
 
+    refreshLoginPage() {
+        if (this.clearingLogin || stopped) return;
+        this.view.stop_loading();
+        this.reloadAt = Infinity;
+        if (!this.loginWindow) {
+            this.view.reload_bypass_cache();
+            return;
+        }
+        this.clearingLogin = true;
+        this.navigation.set_sensitive(false);
+        this.dataManager.clear(WebKit2.WebsiteDataTypes.COOKIES, 0, null, (manager, result) => {
+            let cleared = false;
+            try {
+                cleared = manager.clear_finish(result);
+            } catch (_) {
+                // Leave the page available for another explicit retry.
+            }
+            this.clearingLogin = false;
+            if (stopped) return;
+            this.navigation.set_sensitive(true);
+            if (!cleared) {
+                status('storage-error');
+                return;
+            }
+            this.reloadAt = Infinity;
+            this.lastPageLoad = now();
+            this.view.load_uri('https://intra.42.fr/');
+        });
+    }
+
     showLogin(timestamp) {
         if (this.clearingLogin) return;
         this.signedOut = false;
@@ -1227,10 +1260,14 @@ class Worker {
             this.signedOutFile.delete(null);
         } catch (_) {}
         this.loginWindow = true;
-        this.navigation.hide();
+        this.navigation.show();
         this.window.show_all();
         this.window.present_with_time(timestamp);
-        if (!this.view.is_loading) this.view.load_uri(HOME);
+        // A disabled-account page or hung navigation must not block a new login attempt.
+        this.view.stop_loading();
+        this.reloadAt = Infinity;
+        this.lastPageLoad = now();
+        this.view.load_uri(HOME);
     }
 
     resetAll() {

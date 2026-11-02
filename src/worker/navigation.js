@@ -1,7 +1,8 @@
 const { Gtk, Gdk } = imports.gi;
 
 // Shared by the Intra window and authenticated service/project windows.
-function create(view, window) {
+function create(view, window, options = {}) {
+    const reload = options.reload || (() => view.reload());
     const box = new Gtk.Box({ spacing: 6 });
     const iconButton = (name, icon) => {
         const button = new Gtk.Button({ tooltip_text: name });
@@ -9,16 +10,16 @@ function create(view, window) {
         button.get_accessible().set_name(name);
         return button;
     };
-    const back = iconButton('Back', 'go-previous-symbolic');
-    const forward = iconButton('Forward', 'go-next-symbolic');
+    const back = options.history === false ? null : iconButton('Back', 'go-previous-symbolic');
+    const forward = options.history === false ? null : iconButton('Forward', 'go-next-symbolic');
     const refresh = iconButton('Refresh', 'view-refresh-symbolic');
-    back.connect('clicked', () => {
+    back?.connect('clicked', () => {
         if (view.can_go_back()) view.go_back();
     });
-    forward.connect('clicked', () => {
+    forward?.connect('clicked', () => {
         if (view.can_go_forward()) view.go_forward();
     });
-    refresh.connect('clicked', () => view.reload());
+    refresh.connect('clicked', reload);
     refresh.tooltip_text = 'Refresh (F5)';
     // Capture before WebKit consumes the key, including when a page input has focus.
     const keys = Gtk.EventControllerKey.new(window);
@@ -30,16 +31,17 @@ function create(view, window) {
             state & Gtk.accelerator_get_default_mod_mask()
         )
             return false;
-        view.reload();
+        reload();
         return true;
     });
     box._refreshKeys = keys;
-    for (const button of [back, forward, refresh]) box.pack_start(button, false, false, 0);
+    for (const button of [back, forward, refresh].filter(Boolean))
+        box.pack_start(button, false, false, 0);
     const sync = () => {
-        back.sensitive = view.can_go_back();
-        forward.sensitive = view.can_go_forward();
+        if (back) back.sensitive = view.can_go_back();
+        if (forward) forward.sensitive = view.can_go_forward();
     };
-    view.get_back_forward_list().connect('changed', sync);
+    if (back || forward) view.get_back_forward_list().connect('changed', sync);
     sync();
     box.show_all();
     return box;
