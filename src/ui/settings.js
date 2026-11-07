@@ -26,6 +26,16 @@ var Controller = class Controller {
             if (message.state === 'failed') this._finishRefresh(false);
             else this._checkRefreshDone();
         });
+        this._systemTheme = null;
+        try {
+            this._systemTheme = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+            this._systemThemeSignal = this._systemTheme.connect('changed', (_settings, key) => {
+                if (['color-scheme', 'gtk-theme'].includes(key) &&
+                    this._settings.get_string('theme') === 'system') this._applyTheme();
+            });
+        } catch (_) {
+            // Older desktops may not expose the interface schema.
+        }
         this._buildSettings();
     }
 
@@ -41,6 +51,7 @@ var Controller = class Controller {
     }
 
     destroy() {
+        if (this._systemThemeSignal) this._systemTheme.disconnect(this._systemThemeSignal);
         this._settings.disconnect(this._themeChanged);
         this._indicator.menu.disconnect(this._openSignal);
         this._indicator.menu.disconnect(this._closedSignal);
@@ -287,6 +298,15 @@ var Controller = class Controller {
         const actor = this._indicator.menu.actor;
         actor.remove_style_class_name('pingoose-dark');
         actor.remove_style_class_name('pingoose-light');
-        actor.add_style_class_name(`pingoose-${this._settings.get_string('theme')}`);
+        let theme = this._settings.get_string('theme');
+        if (theme === 'system') {
+            let scheme = '';
+            try { scheme = this._systemTheme?.get_string('color-scheme') || ''; } catch (_) {}
+            let gtkTheme = '';
+            try { gtkTheme = this._systemTheme?.get_string('gtk-theme') || ''; } catch (_) {}
+            theme = scheme === 'prefer-dark' ||
+                (scheme !== 'prefer-light' && /dark/i.test(gtkTheme)) ? 'dark' : 'light';
+        }
+        actor.add_style_class_name(`pingoose-${theme}`);
     }
 };

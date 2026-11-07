@@ -7,6 +7,7 @@ function build(settings) {
         .getCurrentExtension()
         .imports.preferences.panelShortcut.append(box, settings);
     const theme = new Gtk.ComboBoxText();
+    theme.append('system', 'System');
     theme.append('dark', 'Dark');
     theme.append('light', 'Light');
     settings.bind('theme', theme, 'active-id', Gio.SettingsBindFlags.DEFAULT);

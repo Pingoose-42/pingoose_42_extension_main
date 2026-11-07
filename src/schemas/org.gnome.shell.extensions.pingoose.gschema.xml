@@ -43,8 +43,8 @@
     <key name="auto-update" type="b"><default>true</default><summary>Install available updates without prompting</summary></key>
     <key name="auto-close-panels" type="b"><default>false</default><summary>Close side panels when the main menu closes</summary></key>
     <key name="theme" type="s">
-      <choices><choice value="dark"/><choice value="light"/></choices>
-      <default>'dark'</default>
+      <choices><choice value="system"/><choice value="dark"/><choice value="light"/></choices>
+      <default>'system'</default>
       <summary>Profile menu color theme</summary>
     </key>
     <key name="auto-hide-scrollbars" type="b"><default>true</default><summary>Hide panel scrollbars when scrolling stops</summary></key>

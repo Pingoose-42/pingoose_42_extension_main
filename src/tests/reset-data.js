@@ -47,7 +47,7 @@ settings.set_string('project-default-tab', 'note');
 settings.set_strv('section-order', ['chat']);
 settings.set_string('reset-request', 'test');
 Defaults.restore(settings);
-assert(settings.get_string('theme') === 'dark', 'Theme default');
+assert(settings.get_string('theme') === 'system', 'Theme default');
 assert(settings.get_boolean('show-profile'), 'Visibility default');
 assert(settings.get_string('project-default-tab') === 'todo', 'Tab default');
 assert(settings.get_strv('section-order')[0] === 'profile', 'Order default');
