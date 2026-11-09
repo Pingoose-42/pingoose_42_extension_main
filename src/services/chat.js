@@ -7,11 +7,14 @@ const ByteArray = imports.byteArray;
 var PORT = 9000;
 var DOMAIN = '42gyeongsan.kr';
 var SEAT = /^c[0-9]+r[0-9]+s[0-9]+$/i;
-let Policy;
+let Policy, LockState;
 try {
     Policy = imports.models.chatPolicy;
+    LockState = imports.services.lockState;
 } catch (_) {
-    Policy = imports.misc.extensionUtils.getCurrentExtension().imports.models.chatPolicy;
+    const extension = imports.misc.extensionUtils.getCurrentExtension();
+    Policy = extension.imports.models.chatPolicy;
+    LockState = extension.imports.services.lockState;
 }
 const MAX_LINE = 4096;
 const MAX_CONNECTIONS = 16;
@@ -46,6 +49,24 @@ function now() {
 
 var ChatService = class ChatService {
     constructor(port = PORT, blocked = []) {
+        this._lockMonitor = new LockState.Monitor();
+        this._presenceRequests = new Map();
+        this._presenceTimer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
+            if (this.policy.active) {
+                for (const peer of this._peers.values()) this._requestPresence(peer);
+                let count = 0;
+                for (const [seat, login] of this._presenceRequests) {
+                    if (this._connections >= MAX_CONNECTIONS - 2 || count++ >= 2) break;
+                    this._presenceRequests.delete(seat);
+                    const existing = this.peer(seat);
+                    if (existing && (!existing.background || existing.scope !== 'general'))
+                        continue;
+                    const key = this.open(seat, 'general', true, login);
+                    if (key) this.peer(key).presenceOnly = true;
+                }
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
         this.port = port;
         this._blocked = new Set(blocked.map((key) => String(key).toLowerCase()));
         this.state = 'stopped';
@@ -64,6 +85,7 @@ var ChatService = class ChatService {
     configure(policy) {
         const previous = this.policy;
         this.policy = policy;
+        if (!policy.active || !policy.general) this._presenceRequests.clear();
         this._evaluationChats ||= new Map();
         const sessions = (policy.sessions || []).filter(
             (session) => policy.active && session.expires > Date.now()
@@ -156,7 +178,13 @@ var ChatService = class ChatService {
     }
     _ready(peer, conn) {
         if (!this._authorized(peer, conn)) return;
+        this.emit('presence-changed', peer.key);
         this.emit('connection-ready', peer.key);
+        if (peer.presenceOnly && peer.background) {
+            peer.presenceOnly = false;
+            this._drop(peer, conn);
+            return;
+        }
         const grant = this.policy.grants.find(
             (item) =>
                 item.id === peer.scope &&
@@ -190,6 +218,8 @@ var ChatService = class ChatService {
             scope: peer.scope,
             login: this.policy.login,
             general: this.policy.general,
+            lockStatus: true,
+            locked: this._lockMonitor.locked,
         };
         conn.get_output_stream().write_all_async(
             ByteArray.fromString(JSON.stringify(hello) + '\n'),
@@ -231,6 +261,10 @@ var ChatService = class ChatService {
                 (peer.expectedLogin && peer.expectedLogin !== value.login)
             )
                 return false;
+            peer.lockStatus = value.lockStatus === true;
+            peer.locked =
+                peer.lockStatus && typeof value.locked === 'boolean' ? value.locked : null;
+            peer.lockedAt = Date.now();
             peer.login = value.login;
             peer.scope = value.scope;
             state.hello = value;
@@ -241,6 +275,24 @@ var ChatService = class ChatService {
             this._flush(peer);
             return true;
         }
+        if (this._authorized(peer, conn) && peer.lockStatus) {
+            if (value?.type === 'lock-request') {
+                if (Date.now() - (peer.lastLockReply || 0) >= 3000) {
+                    peer.lastLockReply = Date.now();
+                    this._control(peer, { type: 'lock-state', locked: this._lockMonitor.locked });
+                }
+                return true;
+            }
+            if (
+                value?.type === 'lock-state' &&
+                (value.locked === null || typeof value.locked === 'boolean')
+            ) {
+                peer.locked = value.locked;
+                peer.lockedAt = Date.now();
+                this.emit('presence-changed', peer.key);
+                return true;
+            }
+        }
         if (
             !this._authorized(peer, conn) ||
             value?.type !== 'message' ||
@@ -250,6 +302,51 @@ var ChatService = class ChatService {
             return false;
         if (value.text.trim()) this._record(peer, 'in', value.text);
         return true;
+    }
+
+    clearPresenceRequests(currentSeats = null) {
+        if (!currentSeats) {
+            this._presenceRequests.clear();
+            return;
+        }
+        for (const [seat, login] of this._presenceRequests) {
+            if (currentSeats.get(login)?.seat !== seat) this._presenceRequests.delete(seat);
+        }
+    }
+    requestPresence(seat, login) {
+        if (
+            !this.policy.general ||
+            !SEAT.test(seat || '') ||
+            !/^[a-zA-Z0-9_-]{1,64}$/.test(login || '')
+        )
+            return;
+        if (this.isBlocked(seat) || this._blocked.has('@' + login.toLowerCase())) return;
+        const peer = this.peer(seat);
+        if (peer && peer.login === login && this.isConnected(seat)) this._requestPresence(peer);
+        else if (!peer || (peer.background && peer.scope === 'general')) {
+            if (this._presenceRequests.size < 64) this._presenceRequests.set(seat, login);
+        }
+    }
+    lockedState(seat, login) {
+        const peer = this.peer(seat);
+        return peer?.login === login && Date.now() - (peer.lockedAt || 0) < 30000
+            ? peer.locked
+            : null;
+    }
+    _requestPresence(peer) {
+        if (Date.now() - (peer.presenceRequestedAt || 0) < 10000) return;
+        peer.presenceRequestedAt = Date.now();
+        if (peer.lockStatus && this.isConnected(peer.key))
+            this._control(peer, { type: 'lock-request' });
+        if (peer.locked !== null && Date.now() - (peer.lockedAt || 0) >= 30000) {
+            peer.locked = null;
+            this.emit('presence-changed', peer.key);
+        }
+    }
+    _control(peer, value) {
+        if (peer.queue.length >= 32) return;
+        peer.queue.push(value);
+        this._flush(peer);
     }
 
     isBlocked(key) {
@@ -355,7 +452,10 @@ var ChatService = class ChatService {
         peer.scope = scope;
         peer.expectedLogin = expectedLogin;
         if (expectedLogin) peer.login = expectedLogin;
-        if (!background) peer.background = false;
+        if (!background) {
+            peer.background = false;
+            peer.presenceOnly = false;
+        }
         if (!peer.connections.length && !peer.connecting) this._connect(peer);
         this.emit('peer-changed', peer.key);
         return peer.key;
@@ -406,6 +506,9 @@ var ChatService = class ChatService {
     }
 
     destroy() {
+        this._lockMonitor.destroy();
+        GLib.source_remove(this._presenceTimer);
+        this._presenceRequests.clear();
         this._destroyed = true;
         this._cancel.cancel();
         for (const peer of this._peers.values()) {
@@ -754,7 +857,9 @@ var ChatService = class ChatService {
         const text = peer.queue.shift();
         peer.writing = true;
         conn.get_output_stream().write_all_async(
-            ByteArray.fromString(JSON.stringify({ type: 'message', text }) + '\n'),
+            ByteArray.fromString(
+                JSON.stringify(typeof text === 'string' ? { type: 'message', text } : text) + '\n'
+            ),
             GLib.PRIORITY_DEFAULT,
             this._cancel,
             (stream, result) => {
@@ -767,7 +872,7 @@ var ChatService = class ChatService {
                 if (this._destroyed || !this._alive(peer)) return;
                 peer.writing = false;
                 if (!ok) {
-                    this._record(peer, 'sys', `Send failed: ${text}`);
+                    if (typeof text === 'string') this._record(peer, 'sys', `Send failed: ${text}`);
                     this._drop(peer, conn);
                 }
                 this._flush(peer);

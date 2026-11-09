@@ -52,6 +52,7 @@ const panel = Object.create(Panel.prototype);
 Object.assign(panel, {
     settings: { set_string: (_key, value) => (saved = value) },
     chat: {
+        _chat: { clearPresenceRequests() {}, requestPresence() {}, lockedState: () => null },
         _indicator: { loginOnly: false },
         connectUser(login) {
             this.connecting = true;

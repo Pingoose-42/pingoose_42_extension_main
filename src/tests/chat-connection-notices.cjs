@@ -3,10 +3,20 @@ const fs = require('fs'),
     assert = require('assert/strict');
 const context = {
     imports: {
+        services: {
+            lockState: {
+                Monitor: class {
+                    locked = false;
+                    destroy() {}
+                },
+            },
+        },
         models: { chatPolicy: require('../models/chatPolicy.js') },
         gi: {
             Gio: { Cancellable: class {} },
             GLib: {
+                timeout_add_seconds: () => 1,
+                source_remove() {},
                 DateTime: { new_now_local: () => ({ format: () => '12:00' }) },
                 get_user_name: () => 'fixture',
                 get_monotonic_time: () => 1000000,

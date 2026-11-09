@@ -5,6 +5,14 @@ const source = fs.readFileSync('src/services/chat.js', 'utf8');
 let scheduled = [];
 const context = {
     imports: {
+        services: {
+            lockState: {
+                Monitor: class {
+                    locked = false;
+                    destroy() {}
+                },
+            },
+        },
         models: { chatPolicy: require('../models/chatPolicy.js') },
         gi: {
             Gio: { Cancellable: class {} },

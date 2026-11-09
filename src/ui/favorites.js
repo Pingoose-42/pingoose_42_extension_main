@@ -202,6 +202,33 @@ var Panel = class Panel {
             'pingoose-chat-add' + (this.visible ? ' pingoose-toggle-active' : '');
         if (this.visible) this.chat._indicator.placePanelBefore(this.root, this.chat._chatUi.root);
         this.chat._indicator.syncPanelLayout?.();
+        this.syncPresenceRefresh();
+    }
+    syncPresenceRefresh() {
+        const active = this.visible && this.chat._indicator.menu.isOpen;
+        if (!active) {
+            this.stopPresenceRefresh();
+            return;
+        }
+        if (this.presenceRefresh) return;
+        this.refreshPresence();
+        this.presenceRefresh = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10, () => {
+            this.refreshPresence();
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+    stopPresenceRefresh() {
+        if (this.presenceRefresh) GLib.source_remove(this.presenceRefresh);
+        this.presenceRefresh = 0;
+        this.chat._chat.clearPresenceRequests();
+    }
+    refreshPresence() {
+        this.refresh();
+        for (const row of this.rows) {
+            const seat = this.seats.get(row.login)?.seat;
+            if (seat) this.chat._chat.requestPresence(seat, row.login);
+        }
+        this.updatePresence();
     }
     setAddBusy(busy) {
         this.addButton.reactive = this.addButton.can_focus = !busy;
@@ -274,6 +301,13 @@ var Panel = class Panel {
                         campus: message.campus,
                         at: Date.now(),
                     });
+                }
+                // Keep queued probes in order; restarting the queue can starve later friends.
+                this.chat._chat.clearPresenceRequests(this.seats);
+                for (const row of this.rows) {
+                    const seat = this.seats.get(row.login)?.seat;
+                    if (seat && this.presenceRefresh)
+                        this.chat._chat.requestPresence(seat, row.login);
                 }
                 this.saveSeats();
                 this.render();
@@ -438,7 +472,22 @@ var Panel = class Panel {
         this.connectingLogin = null;
         this.render();
     }
+    updatePresence() {
+        for (const { label, seat, login } of this.presenceLabels || []) {
+            const locked = this.chat._chat.lockedState(seat, login);
+            const status =
+                locked === true
+                    ? 'Screen locked'
+                    : locked === false
+                      ? 'Available'
+                      : 'Available · Lock unknown';
+            label.text = `${status} (${seat})`;
+            label.style_class =
+                locked === true ? 'pingoose-favorite-unavailable' : 'pingoose-profile-level';
+        }
+    }
     render() {
+        this.presenceLabels = [];
         const adjustment = this.scroll?.get_vscroll_bar().get_adjustment();
         const position = this.scrollPosition ?? adjustment?.value ?? 0;
         if (this.scrollRestore) Meta.later_remove(this.scrollRestore);
@@ -547,16 +596,20 @@ var Panel = class Panel {
             );
             const state = this.seats.get(row.login);
             const available = !!state?.seat;
-            stats.add_child(
-                new St.Label({
-                    text: available ? `Available (${state.seat})` : 'Unavailable',
-                    x_expand: true,
-                    y_align: Clutter.ActorAlign.CENTER,
-                    style_class: available
-                        ? 'pingoose-profile-level'
-                        : 'pingoose-favorite-unavailable',
-                })
-            );
+            const presenceLabel = new St.Label({
+                text: available ? `Available (${state.seat})` : 'Unavailable',
+                x_expand: true,
+                y_align: Clutter.ActorAlign.CENTER,
+                style_class: available ? 'pingoose-profile-level' : 'pingoose-favorite-unavailable',
+            });
+            stats.add_child(presenceLabel);
+            if (available)
+                this.presenceLabels.push({
+                    label: presenceLabel,
+                    seat: state.seat,
+                    login: row.login,
+                });
+            this.updatePresence();
             names.add_child(stats);
             const connect = this.button('Connect', () => this.connect(row));
             const busy = this.connectingLogin === row.login;
@@ -651,6 +704,7 @@ var Panel = class Panel {
         this.clusterUpdatedAt = 0;
     }
     reset() {
+        this.stopPresenceRefresh();
         this.clearClusterRequest();
         this.connectingLogin = null;
         this.expanded = false;
@@ -672,6 +726,7 @@ var Panel = class Panel {
         this.render();
     }
     destroy() {
+        this.stopPresenceRefresh();
         this.clearClusterRequest();
         if (this.scrollRestore) Meta.later_remove(this.scrollRestore);
         if (this.retry) GLib.source_remove(this.retry);

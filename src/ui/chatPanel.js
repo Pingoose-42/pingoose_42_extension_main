@@ -330,6 +330,13 @@ var ChatPanel = class ChatPanel {
         });
         scroll.add_actor(ui.log);
         root.add_child(scroll);
+        ui.lockNotice = new St.Label({
+            visible: false,
+            x_expand: true,
+            style: 'color: #e5b94c; font-size: 11px;',
+        });
+        ui.lockNotice.clutter_text.line_wrap = true;
+        root.add_child(ui.lockNotice);
         // Follow new messages only while the view is already at the bottom.
         const adjustment = scroll.vscroll.adjustment;
         adjustment.connect('notify::value', () => {
@@ -394,6 +401,10 @@ var ChatPanel = class ChatPanel {
     }
 
     _bindChatSignals() {
+        this._chat.connect('presence-changed', () => {
+            this._syncLockNotice();
+            this._favorites?.updatePresence();
+        });
         this._chat.connect('availability-changed', () => this.onAvailabilityChanged?.());
         this._chat.connect('connection-failed', (_chat, key, reason) =>
             this.connection.failed(key, reason)
@@ -504,7 +515,17 @@ var ChatPanel = class ChatPanel {
         );
     }
 
+    _syncLockNotice() {
+        const notice = this._chatUi?.lockNotice;
+        if (!notice) return;
+        const peer = this._chat.peer(this._chatActive);
+        const locked = peer && this._chat.lockedState(peer.key, peer.login) === true;
+        notice.text = locked ? `@${peer.login} is screen locked.` : '';
+        notice.visible = !!locked;
+    }
+
     _renderChat() {
+        this._syncLockNotice();
         const ui = this._chatUi;
         this._renderChatChips();
         ui.log.destroy_all_children();
