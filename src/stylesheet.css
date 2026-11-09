@@ -814,6 +814,10 @@
     padding-left: 8px;
 }
 
+.pingoose-light .pingoose-agenda-subscribed {
+    color: #596273;
+}
+
 .pingoose-agenda-feedback-required {
     color: #ef5350;
     font-size: 10px;
