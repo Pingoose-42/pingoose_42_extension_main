@@ -475,12 +475,15 @@ var Panel = class Panel {
     updatePresence() {
         for (const { label, seat, login } of this.presenceLabels || []) {
             const locked = this.chat._chat.lockedState(seat, login);
+            const supportsLock = this.chat._chat.peer?.(seat)?.lockStatus === true;
             const status =
                 locked === true
                     ? 'Screen locked'
                     : locked === false
                       ? 'Available'
-                      : 'Available · Lock unknown';
+                      : supportsLock
+                        ? 'Available · Lock unconfirmed'
+                        : 'Available';
             label.text = `${status} (${seat})`;
             label.style_class =
                 locked === true ? 'pingoose-favorite-unavailable' : 'pingoose-profile-level';

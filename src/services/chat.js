@@ -19,6 +19,8 @@ try {
 const MAX_LINE = 4096;
 const MAX_CONNECTIONS = 16;
 const MAX_HISTORY = 200;
+// Fifty favorites are probed in a bounded queue; allow a full round plus network delays.
+const LOCK_STATE_TTL = 90000;
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
 
 // Conversation key for a host: "c2r3s4" for cluster seats, otherwise the host itself.
@@ -59,8 +61,7 @@ var ChatService = class ChatService {
                     if (this._connections >= MAX_CONNECTIONS - 2 || count++ >= 2) break;
                     this._presenceRequests.delete(seat);
                     const existing = this.peer(seat);
-                    if (existing && (!existing.background || existing.scope !== 'general'))
-                        continue;
+                    if (existing && (existing.scope !== 'general' || existing.connecting)) continue;
                     const key = this.open(seat, 'general', true, login);
                     if (key) this.peer(key).presenceOnly = true;
                 }
@@ -179,12 +180,12 @@ var ChatService = class ChatService {
     _ready(peer, conn) {
         if (!this._authorized(peer, conn)) return;
         this.emit('presence-changed', peer.key);
-        this.emit('connection-ready', peer.key);
-        if (peer.presenceOnly && peer.background) {
-            peer.presenceOnly = false;
+        if (peer.presenceOnly) {
             this._drop(peer, conn);
+            peer.presenceOnly = false;
             return;
         }
+        this.emit('connection-ready', peer.key);
         const grant = this.policy.grants.find(
             (item) =>
                 item.id === peer.scope &&
@@ -323,13 +324,13 @@ var ChatService = class ChatService {
         if (this.isBlocked(seat) || this._blocked.has('@' + login.toLowerCase())) return;
         const peer = this.peer(seat);
         if (peer && peer.login === login && this.isConnected(seat)) this._requestPresence(peer);
-        else if (!peer || (peer.background && peer.scope === 'general')) {
+        else if (!peer || peer.scope === 'general') {
             if (this._presenceRequests.size < 64) this._presenceRequests.set(seat, login);
         }
     }
     lockedState(seat, login) {
         const peer = this.peer(seat);
-        return peer?.login === login && Date.now() - (peer.lockedAt || 0) < 30000
+        return peer?.login === login && Date.now() - (peer.lockedAt || 0) < LOCK_STATE_TTL
             ? peer.locked
             : null;
     }
@@ -338,7 +339,7 @@ var ChatService = class ChatService {
         peer.presenceRequestedAt = Date.now();
         if (peer.lockStatus && this.isConnected(peer.key))
             this._control(peer, { type: 'lock-request' });
-        if (peer.locked !== null && Date.now() - (peer.lockedAt || 0) >= 30000) {
+        if (peer.locked !== null && Date.now() - (peer.lockedAt || 0) >= LOCK_STATE_TTL) {
             peer.locked = null;
             this.emit('presence-changed', peer.key);
         }
@@ -569,14 +570,14 @@ var ChatService = class ChatService {
     }
 
     _announceConnection(peer, text) {
-        if (peer.background || peer.connectionAnnounced) return;
+        if (peer.background || peer.presenceOnly || peer.connectionAnnounced) return;
         peer.connectionAnnounced = true;
         this._record(peer, 'sys', text);
     }
 
     _record(peer, dir, text) {
         if (!this._alive(peer) || this.isBlocked(peer.key)) return;
-        if (peer.background && dir === 'sys') return;
+        if ((peer.background || peer.presenceOnly) && dir === 'sys') return;
         if (dir !== 'sys') peer.background = false;
         const entry = { dir, text, time: now() };
         peer.history.push(entry);
